@@ -81,7 +81,20 @@ function seedDefaults() {
   }
 }
 
-// ---------- 기존 서버 데이터 보정(2026-06 개편 반영, 1회 자동 실행) ----------
+// ---------- 구성원 순서·완전성 보정 (매 접속 시) ----------
+const MEMBER_ORDER = ['김유선', '박혜경', '이명규', '윤효원', '이주환', '박용철', '송관철', '양은숙', '이상원'];
+function migratePeople() {
+  let changed = false;
+  // 빠진 구성원 추가 (기존 id 보존 — 일정 기록 연결 유지)
+  MEMBER_ORDER.forEach(n => {
+    if (!state.people.some(p => p.name === n)) { state.people.push({ id: DB.uid(), name: n }); changed = true; }
+  });
+  // 지정 순서로 정렬 (목록에 없는 이름은 뒤에 등록 순서대로 유지)
+  const rank = n => { const i = MEMBER_ORDER.indexOf(n); return i === -1 ? MEMBER_ORDER.length : i; };
+  const sorted = [...state.people].sort((a, b) => rank(a.name) - rank(b.name));
+  if (sorted.some((p, i) => p.id !== state.people[i].id)) { state.people = sorted; changed = true; }
+  if (changed) persist('people');
+}
 function migrate() {
   // 사업: 노동이사제 개칭, 감사·기타 삭제, e노동사회 추가, 담당자 보정
   if (state.biz.length && !state.biz.some(b => b.name === 'e노동사회')) {
@@ -121,6 +134,7 @@ async function boot() {
   }
   seedDefaults();
   migrate();
+  migratePeople();
   // 칸 수정 → 자동 저장 (blur 시점)
   document.getElementById('view').addEventListener('change', e => {
     const el = e.target.closest('[data-store]');
