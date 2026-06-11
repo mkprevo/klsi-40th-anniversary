@@ -8,9 +8,9 @@
    phpMyAdmin은 cafe24에서 제공되며 별도 설치가 필요 없습니다. */
 
 define('DB_HOST', 'localhost');
-define('DB_USER', '호스팅아이디');
-define('DB_PASS', 'MySQL비밀번호');
-define('DB_NAME', '호스팅아이디');
+define('DB_USER', 'prevolee94');
+define('DB_PASS', '여기에_FTP비밀번호');  // FileZilla 접속에 쓰는 비밀번호와 동일 (직접 입력 후 업로드)
+define('DB_NAME', 'prevolee94');
 
 /* (선택) 간단한 공유 토큰. 값을 정하면 meeting.js 의 CONFIG.token 과 동일하게 맞추세요.
    비워두면 인증 없이 누구나 API에 접근할 수 있으니, 외부 공개 서버라면 설정을 권장합니다. */
