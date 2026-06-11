@@ -52,8 +52,10 @@ JavaScript + 브라우저 `localStorage`로 동작하며, cafe24 등 어떤 호�
 설정 절차:
 1. 전체 파일을 cafe24 웹폴더(`/www`)에 FTP 업로드.
 2. `config.php` 에 MySQL 접속정보 입력.
-3. `meeting.js` 상단 `CONFIG.api` 를 `'api.php'` 로 변경(같은 폴더 기준).
-4. 외부 공개 서버라면 `config.php` 의 `API_TOKEN` 과 `meeting.js` 의 `CONFIG.token` 을
+3. **`사이트주소/check.php` 에 접속해 PHP/MySQL 지원과 접속정보를 진단** (지원 여부가
+   불확실할 때 가장 빠른 확인 방법, 확인 후 삭제 권장).
+4. 진단이 "성공"이면 `meeting.js` 상단 `CONFIG.api` 를 `'api.php'` 로 변경(같은 폴더 기준).
+5. 외부 공개 서버라면 `config.php` 의 `API_TOKEN` 과 `meeting.js` 의 `CONFIG.token` 을
    동일한 값으로 설정해 간단히 보호.
 
 > cafe24 웹호스팅은 PHP와 MySQL을 기본 제공합니다(phpMyAdmin 포함). MySQL 지원 여부가
