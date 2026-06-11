@@ -95,6 +95,32 @@ function migratePeople() {
   if (sorted.some((p, i) => p.id !== state.people[i].id)) { state.people = sorted; changed = true; }
   if (changed) persist('people');
 }
+
+// ---------- 이번 주(6/8~6/12) 일정 1회 입력 (구글 주간일정표 옮김) ----------
+function seedThisWeek() {
+  const WK = '2026-06-08'; // 월=6/8 화=6/9 수=6/10 목=6/11 금=6/12
+  const data = {
+    '김유선': ['(10:30) 주간회의', '(18:45) 노사관계이론(종강)', '(09:30) 6·10항쟁 기념식\n(14:00) 최저임금토론회(사회)', '(14:30) 영국학생', '(14:00) 노동이사 청강', '(10:00) 걷기대회(동대입구역)\n(10:00) 경노회'],
+    '박혜경': ['10:30 주간회의', '18:00 9기 전문가과정', '11:00 화섬', '', '', ''],
+    '이명규': ['10:30 주간회의', '14:00 봉제업 프로젝트 발표회\n16:00 단체교섭 플젝(연구원) 회의', '화섬노조 플젝 방문 계약', '', '14:00 노동이사제', ''],
+    '윤효원': ['SOAS 대학원생 지원\n(이대·연대 강의: 한국의 외교정책)', 'SOAS 대학원생 방한 지원\n(한국의 대북정책, 전쟁박물관)', 'SOAS 대학원생 방한 지원\n(DMZ 방문)', 'SOAS 대학원생 방한 지원\n(이대 강의: 김유선 / 강미나 강의: 향린교회 1층 교육장)', 'SOAS 대학원생 방한 지원\n(이대 강의, 국경없는의사회)', ''],
+    '이주환': ['(10:00) 연구실회의\n(10:30) 주간회의\n(14:00) 서비스연맹 콜센터 초기업 교섭 간담회', '', '', '(10:00) 한국노총 조직화 연구 회의', '', '(10:00) 경노회\n(12:30) 논문 모임'],
+    '박용철': ['연구소 회의\n(14:00) 콜센터 교섭 간담회', '(15:00) 조선산업 TF 회의(금속노조)', '', '(10:30~) 속초노사민정 간담회', '삼척노사민정 자문', '(16:00) 한양대 MBA 강의'],
+    '송관철': ['(오전) 연구소 회의', '', '(14:00) 도급제 최저임금 토론회\n(토론자, 장소: 국회도서관)', '', '', ''],
+    '양은숙': ['10:30 주간회의\n연구계약 서류', '', '휴가', '', '', ''],
+    '이상원': ['10:30 주간회의', '18:30 전문가과정', '출근', '', '오전반차', '']
+  };
+  let changed = false;
+  for (const name in data) {
+    const p = state.people.find(x => x.name === name);
+    if (!p) continue;
+    if (state.sched.some(s => s.week === WK && s.personId === p.id)) continue; // 이미 있으면 건드리지 않음
+    const [d0, d1, d2, d3, d4, note] = data[name];
+    state.sched.push({ id: DB.uid(), week: WK, personId: p.id, d0, d1, d2, d3, d4, note });
+    changed = true;
+  }
+  if (changed) persist('sched');
+}
 function migrate() {
   // 사업: 노동이사제 개칭, 감사·기타 삭제, e노동사회 추가, 담당자 보정
   if (state.biz.length && !state.biz.some(b => b.name === 'e노동사회')) {
@@ -135,6 +161,7 @@ async function boot() {
   seedDefaults();
   migrate();
   migratePeople();
+  seedThisWeek();
   // 칸 수정 → 자동 저장 (blur 시점)
   document.getElementById('view').addEventListener('change', e => {
     const el = e.target.closest('[data-store]');
