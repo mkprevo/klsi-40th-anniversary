@@ -93,6 +93,9 @@ function migratePeople() {
   const rank = n => { const i = MEMBER_ORDER.indexOf(n); return i === -1 ? MEMBER_ORDER.length : i; };
   const sorted = [...state.people].sort((a, b) => rank(a.name) - rank(b.name));
   if (sorted.some((p, i) => p.id !== state.people[i].id)) { state.people = sorted; changed = true; }
+  // 양은숙 고정 담당 1회 시드 (이후 사용자가 비우면 다시 채우지 않음)
+  const yes = state.people.find(p => p.name === '양은숙');
+  if (yes && yes.role === undefined) { yes.role = '재정, 회원관리, 사무총괄'; changed = true; }
   if (changed) persist('people');
 }
 
@@ -300,14 +303,14 @@ function vResearch() {
 // ---------- 화면: 구성원 ----------
 function vPeople() {
   const rows = state.people.map(p =>
-    `<tr>${icel('people', p.id, 'name', p.name)}${delBtn('people', p.id)}</tr>`).join('');
+    `<tr>${icel('people', p.id, 'name', p.name)}${icel('people', p.id, 'role', p.role || '')}${delBtn('people', p.id)}</tr>`).join('');
   return `<h3>구성원</h3>
-    <table class="sheet" style="max-width:360px"><tr><th>이름</th><th style="width:36px"></th></tr>${rows}</table>
+    <table class="sheet" style="max-width:680px"><tr><th style="width:120px">이름</th><th>고정 담당 (재정·회원·행정 등)</th><th style="width:36px"></th></tr>${rows}</table>
     <div class="actions">
       <input id="npName" placeholder="새 구성원 이름" style="width:160px">
       <button onclick="app.addPerson()">+ 추가</button>
     </div>
-    <p class="hint">이름을 지워도 과거 일정 기록은 데이터에 남습니다. 표시 순서는 등록 순서입니다.</p>`;
+    <p class="hint">‘고정 담당’에는 사업·연구가 아닌 상시 역할(예: 재정, 회원관리, 사무총괄, 감사)을 적습니다. 활동 탭 요약에 함께 표시됩니다.</p>`;
 }
 
 // ---------- 인쇄용 렌더 (편집칸 대신 읽기전용 표) ----------
@@ -420,7 +423,8 @@ function vActivity() {
     const part = state.research.filter(r => tokens(r.fellows).includes(p.name) || tokens(r.asst).includes(p.name)).map(r => r.title);
     const cnt = bz.length + lead.length + part.length;
     const td = arr => arr.length ? arr.map(esc).join('<br>') : '<span class="muted">-</span>';
-    return `<tr><th class="nm">${esc(p.name)}</th><td>${td(bz)}</td><td>${td(lead)}</td><td>${td(part)}</td><td class="c"><span class="badge">${cnt}</span></td></tr>`;
+    const role = esc(p.role) || '<span class="muted">-</span>';
+    return `<tr><th class="nm">${esc(p.name)}</th><td>${role}</td><td>${td(bz)}</td><td>${td(lead)}</td><td>${td(part)}</td><td class="c"><span class="badge">${cnt}</span></td></tr>`;
   }).join('');
 
   // 담당 구성원이 인식되지 않은 활동
@@ -436,7 +440,7 @@ function vActivity() {
     <details class="legend"><summary>활동 코드(B·P·A) 전체 이름 보기</summary><ul>${legend}</ul></details>
     <h4>구성원별 요약</h4>
     <div class="scroll"><table class="sheet">
-      <tr><th class="nm">구성원</th><th>담당 사업</th><th>책임 연구</th><th>참여 연구</th><th style="width:54px">활동 수</th></tr>${sumRows}
+      <tr><th class="nm">구성원</th><th>고정 담당</th><th>담당 사업</th><th>책임 연구</th><th>참여 연구</th><th style="width:54px">활동 수</th></tr>${sumRows}
     </table></div>
     ${orphans.length ? `<h4>담당 구성원이 인식되지 않은 활동</h4>
       <p class="hint">외부 책임자이거나 이름 표기가 다를 수 있습니다. 필요하면 사업/연구 탭에서 담당자·책임자 칸을 확인하세요.</p>
@@ -467,7 +471,7 @@ window.app = {
   addPerson() {
     const name = document.getElementById('npName').value.trim();
     if (!name) return;
-    DB.add('people', { name }); route();
+    DB.add('people', { name, role: '' }); route();
   },
   del(store, id) { if (confirm('이 행을 삭제할까요?')) { DB.remove(store, id); route(); } },
   print() {
