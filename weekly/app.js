@@ -110,13 +110,16 @@ function seedThisWeek() {
     '양은숙': ['10:30 주간회의\n연구계약 서류', '', '휴가', '', '', ''],
     '이상원': ['10:30 주간회의', '18:30 전문가과정', '출근', '', '오전반차', '']
   };
+  const VER = 2; // 시드 버전: 시간 포함본으로 1회 덮어쓰기 (이후 사용자 편집은 보존)
   let changed = false;
   for (const name in data) {
     const p = state.people.find(x => x.name === name);
     if (!p) continue;
-    if (state.sched.some(s => s.week === WK && s.personId === p.id)) continue; // 이미 있으면 건드리지 않음
+    const r = state.sched.find(s => s.week === WK && s.personId === p.id);
+    if (r && r.seedVer === VER) continue; // 이미 최신 시드 적용됨 → 건드리지 않음
     const [d0, d1, d2, d3, d4, note] = data[name];
-    state.sched.push({ id: DB.uid(), week: WK, personId: p.id, d0, d1, d2, d3, d4, note });
+    if (r) Object.assign(r, { d0, d1, d2, d3, d4, note, seedVer: VER });
+    else state.sched.push({ id: DB.uid(), week: WK, personId: p.id, d0, d1, d2, d3, d4, note, seedVer: VER });
     changed = true;
   }
   if (changed) persist('sched');
