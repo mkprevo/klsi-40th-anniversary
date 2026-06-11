@@ -11,6 +11,11 @@ echo '<li>PHP 버전: <b>' . PHP_VERSION . '</b></li>';
 echo '<li>mysqli 확장: <b>' . (extension_loaded('mysqli') ? 'O 사용 가능' : 'X 없음 (호스팅사 문의 필요)') . '</b></li>';
 
 if (extension_loaded('mysqli')) {
+  mysqli_report(MYSQLI_REPORT_OFF); // PHP 8.1+ 기본 예외 모드를 끄고 오류를 직접 표시
+  if (DB_PASS === '여기에_FTP비밀번호') {
+    echo '<li>MySQL 연결: <b style="color:#c0392b">설정 안 됨</b> — config.php 의 DB_PASS 가 아직 플레이스홀더입니다. 실제 비밀번호로 바꿔 업로드하세요.</li></ul></body>';
+    exit;
+  }
   $db = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
   if ($db->connect_errno) {
     echo '<li>MySQL 연결: <b style="color:#c0392b">실패</b> — ' . htmlspecialchars($db->connect_error) . '</li>';
@@ -21,7 +26,7 @@ if (extension_loaded('mysqli')) {
     $cnt = $db->query("SELECT COUNT(*) c FROM kv")->fetch_assoc()['c'];
     echo '<li>MySQL 연결: <b style="color:#16a085">성공</b> (DB: ' . htmlspecialchars(DB_NAME) . ')</li>';
     echo '<li>kv 테이블: <b>준비됨</b> (현재 ' . $cnt . '개 스토어 저장)</li>';
-    echo '<li>→ 정상입니다. meeting.js 의 <code>CONFIG.api</code> 를 <code>\'api.php\'</code> 로 바꾸면 팀 공유가 켜집니다.</li>';
+    echo '<li>→ 정상입니다. 게시판을 새로고침하면 초록 배너(팀 공유 모드)가 표시됩니다.</li>';
   }
 }
 echo '</ul></body>';
