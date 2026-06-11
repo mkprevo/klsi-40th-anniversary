@@ -266,6 +266,74 @@ function vPeople() {
     <p class="hint">이름을 지워도 과거 일정 기록은 데이터에 남습니다. 표시 순서는 등록 순서입니다.</p>`;
 }
 
+// ---------- 인쇄용 렌더 (편집칸 대신 읽기전용 표) ----------
+const ptext = s => esc(s).replace(/\n/g, '<br>');
+const findSched = (pid, wk) => state.sched.find(s => s.week === wk && s.personId === pid) || {};
+const findAdmin = wk => state.adminrec.find(s => s.week === wk) || {};
+
+function pGrid(mon, label) {
+  const wk = ymd(mon);
+  const days = [0, 1, 2, 3, 4].map(i => addD(mon, i));
+  const head = `<tr><th class="nm">이름</th>${days.map((d, i) => `<th>${'월화수목금'[i]} ${md(d)}</th>`).join('')}<th>비고</th></tr>`;
+  const rows = state.people.map(p => {
+    const r = findSched(p.id, wk);
+    return `<tr><th class="nm">${esc(p.name)}</th>` +
+      [0, 1, 2, 3, 4].map(i => `<td>${ptext(r['d' + i])}</td>`).join('') +
+      `<td>${ptext(r.note)}</td></tr>`;
+  }).join('');
+  return `<h2>${label} 주간일정표 (${md(mon)} ~ ${md(addD(mon, 4))})</h2>
+    <table class="psheet grid">${head}${rows}</table>`;
+}
+
+function pMeeting(mon) {
+  const wk = ymd(mon);
+  const a = findAdmin(wk);
+  const ag = state.agenda.filter(r => r.week === wk);
+  const joins = state.members.filter(r => r.week === wk && r.kind === '가입');
+  const leaves = state.members.filter(r => r.week === wk && r.kind === '탈퇴');
+  const agRows = ag.length
+    ? ag.map((r, i) => `<tr><td class="c">${i + 1}</td><td>${ptext(r.text)}</td><td>${ptext(r.result)}</td></tr>`).join('')
+    : '<tr><td colspan="3" class="c muted">(안건 없음)</td></tr>';
+  const mTable = (list, c) => list.length ? `<table class="psheet">
+      <tr><th>회원번호</th><th>회원명</th><th>소속</th><th>회원구분</th><th>결제방식</th><th>${c[0]}</th><th>${c[1]}</th></tr>
+      ${list.map(r => `<tr><td>${ptext(r.mno)}</td><td>${ptext(r.name)}</td><td>${ptext(r.org)}</td><td>${ptext(r.grade)}</td><td>${ptext(r.pay)}</td><td>${ptext(r.date1)}</td><td>${ptext(r.date2)}</td></tr>`).join('')}
+    </table>` : '<p class="muted">(없음)</p>';
+  return `<h2>주간회의 (${md(mon)} ~ ${md(addD(mon, 4))})</h2>
+    <h3>논의안건</h3>
+    <table class="psheet"><tr><th class="c" style="width:34px">번호</th><th>안건</th><th>논의·결정</th></tr>${agRows}</table>
+    <h3>행정 / 회원</h3>
+    <table class="psheet kv">
+      <tr><th>운영 및 행정</th><td>${ptext(a.ops)}</td></tr>
+      <tr><th>인사</th><td>${ptext(a.hr)}</td></tr>
+      <tr><th>수입현황 — 입금현황</th><td>${ptext(a.income)}</td></tr>
+      <tr><th>수입현황 — 후원비</th><td>${ptext(a.donation)}</td></tr>
+    </table>
+    <h4>회원 가입</h4>${mTable(joins, ['등록방식', '가입일'])}
+    <h4>회원 탈퇴</h4>${mTable(leaves, ['시작일', '해지일'])}`;
+}
+
+function pBiz() {
+  const rows = state.biz.map(r =>
+    `<tr><td class="c">${ptext(r.no)}</td><td>${ptext(r.name)}</td><td>${ptext(r.owner)}</td><td>${ptext(r.content)}</td><td>${ptext(r.note)}</td></tr>`).join('');
+  return `<h2>사업</h2>
+    <table class="psheet"><tr><th style="width:34px">순번</th><th>사업명</th><th>담당자</th><th>주요 추진 내용</th><th>비고</th></tr>${rows}</table>`;
+}
+
+function pResearch() {
+  const head = `<tr><th>년도</th><th>연번</th><th>연구과제명</th><th>책임자</th><th>연구위원</th><th>연구원</th><th>계약서</th><th>발주처</th><th>시작</th><th>종료</th><th>금액</th><th>입금액</th><th>결재</th><th>진행상황</th></tr>`;
+  const block = (cat, label) => {
+    const list = state.research.filter(r => (r.cat || '진행') === cat)
+      .sort((a, b) => (a.year + '').localeCompare(b.year + '') || amt(a.no) - amt(b.no));
+    const rows = list.map(r =>
+      `<tr><td class="c">${ptext(r.year)}</td><td class="c">${ptext(r.no)}</td><td>${ptext(r.title)}</td><td>${ptext(r.lead)}</td><td>${ptext(r.fellows)}</td><td>${ptext(r.asst)}</td><td class="c">${ptext(r.contract)}</td><td>${ptext(r.client)}</td><td>${ptext(r.start)}</td><td>${ptext(r.end)}</td><td class="r">${ptext(r.amount)}</td><td class="r">${ptext(r.paid)}</td><td>${ptext(r.approve)}</td><td>${ptext(r.status)}</td></tr>`).join('');
+    const tot = fmtAmt(list.reduce((s, r) => s + amt(r.amount), 0));
+    const paid = fmtAmt(list.reduce((s, r) => s + amt(r.paid), 0));
+    return `<h3>${label}</h3><table class="psheet rsch">${head}${rows}</table>
+      <p class="sum">금액 합계 ${tot} · 입금액 합계 ${paid} (단위: 만원)</p>`;
+  };
+  return `<h2>연구</h2>${block('진행', '진행중 용역')}${block('응모', '응모예정 과제')}`;
+}
+
 // ---------- 라우터 ----------
 const VIEWS = { grid: vGrid, meeting: vMeeting, biz: vBiz, research: vResearch, people: vPeople };
 function route() {
@@ -293,6 +361,18 @@ window.app = {
     DB.add('people', { name }); route();
   },
   del(store, id) { if (confirm('이 행을 삭제할까요?')) { DB.remove(store, id); route(); } },
+  print() {
+    let el = document.getElementById('printArea');
+    if (!el) { el = document.createElement('div'); el.id = 'printArea'; document.body.appendChild(el); }
+    const last = addD(curMon, -7);
+    el.innerHTML =
+      `<div class="phead">한국노동사회연구소 주간회의 자료 — ${md(curMon)} ~ ${md(addD(curMon, 4))}</div>` +
+      pGrid(last, '지난주') + pGrid(curMon, '이번주') +
+      `<div class="pbreak"></div>` + pMeeting(curMon) +
+      `<div class="pbreak"></div>` + pBiz() +
+      `<div class="pbreak"></div>` + pResearch();
+    window.print();
+  },
   exportJSON() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');

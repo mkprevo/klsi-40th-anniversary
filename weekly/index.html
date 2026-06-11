@@ -20,6 +20,7 @@
     <a href="#research" data-tab="research">연구</a>
     <a href="#people" data-tab="people">구성원</a>
     <span class="tab-tools">
+      <button class="print-btn" onclick="app.print()">🖨 회의자료 인쇄</button>
       <button onclick="app.exportJSON()">내보내기</button>
       <label class="import-btn">가져오기<input type="file" accept="application/json" onchange="app.importJSON(this)" hidden></label>
     </span>
