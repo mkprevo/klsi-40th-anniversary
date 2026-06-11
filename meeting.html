@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>주간회의 업무관리 | 한국노동사회연구소</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <h1>주간회의 업무관리</h1>
+    <h2>사람 · 사업 · 일정 연결형 관리 시스템</h2>
+  </header>
+  <nav class="tabs">
+    <a href="index.html">← 기념 사이트</a>
+    <a href="#input" data-tab="input">개인 입력</a>
+    <a href="#meeting" data-tab="meeting">주간회의</a>
+    <a href="#admin" data-tab="admin">사람·사업 관리</a>
+    <span class="tab-tools">
+      <button onclick="app.exportJSON()">내보내기</button>
+      <label class="import-btn">가져오기<input type="file" accept="application/json" onchange="app.importJSON(this)" hidden></label>
+    </span>
+  </nav>
+  <div class="container">
+    <div id="view"><!-- 뷰가 렌더링됩니다 --></div>
+  </div>
+  <script src="meeting.js"></script>
+</body>
+</html>
