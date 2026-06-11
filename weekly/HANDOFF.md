@@ -21,11 +21,13 @@
 ## 3. 현재 상태 (어디까지 했나)
 
 - [x] 주간회의 시스템을 독립 하위 폴더 `weekly/` 로 구성 (FileZilla 드롭인 가능).
-- [x] cafe24 `/www/40th/weekly/` 에 6개 파일 업로드 완료, 화면 정상 표시.
-- [x] `app.js` 팀 공유 모드 켬(`CONFIG.api='api.php'`) + 서버 실패 시 localStorage 자동 폴백,
-      상단 상태 배너(팀 공유/로컬), 서버 빈 경우 로컬 데이터 1회 이관 confirm 구현.
-- [ ] **사용자 작업 남음**: cafe24 MySQL DB 신청 → `config.php` 접속정보 입력 →
-      `app.js`+`config.php` 재업로드 → `check.php` 로 성공 확인 → `check.php` 삭제.
+- [x] cafe24 `/www/40th/weekly/` 에 업로드 완료, `http://40th.klsi.org/40th/weekly/` 정상 작동.
+- [x] `app.js` 팀 공유 모드 켬 + 서버 실패 시 localStorage 자동 폴백, 상태 배너, 1회 이관 confirm.
+- [x] **팀 공유 가동 확인됨 (2026-06-11)** — check.php "MySQL 연결: 성공", 게시판 초록 배너 표시.
+  - DB: localhost / prevolee94 / DB 비밀번호는 FTP와 별개 (서버의 config.php에만 존재, 저장소엔 없음)
+  - 진단 과정: PHP 8.4 라 mysqli 예외로 check.php 가 중간에 죽는 문제 → mysqli_report(OFF) 로 해결
+- [ ] 보안 마무리: 서버에서 `check.php` 삭제, (선택) cafe24 「보안관리 > 디렉토리 접속설정」으로
+      `/40th/weekly` 에 아이디/비번 잠금 — 외부인 열람 차단용으로 권장.
 
 ## 4. `weekly/` 폴더 파일 구성
 
