@@ -2,15 +2,44 @@
    스토어(7): people, projects, members, meetings, entries, updates, schedule
    1:1 관계(재정/회원변동)는 meetings 레코드에 필드로 병합해 단순화. */
 
-// ---------- 데이터층 ----------
-const DB = {
-  load: k => JSON.parse(localStorage.getItem('klsi_' + k) || '[]'),
-  save: (k, v) => localStorage.setItem('klsi_' + k, JSON.stringify(v)),
-  uid: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-  add(k, rec) { const l = this.load(k); rec.id = this.uid(); l.push(rec); this.save(k, l); return rec; },
-  remove(k, id) { this.save(k, this.load(k).filter(r => r.id !== id)); }
-};
+// ---------- 설정 ----------
+// api 를 비워두면 이 브라우저(localStorage)에만 저장됩니다. (현재 기본값)
+// cafe24에 PHP+MySQL을 올린 뒤 'api.php' 로 바꾸면 팀 전체가 공유합니다.
+const CONFIG = { api: '', token: '' };
+
+// ---------- 데이터층 (메모리 캐시 + localStorage/서버 동기화) ----------
 const STORES = ['people', 'projects', 'members', 'meetings', 'entries', 'updates', 'schedule'];
+let state = Object.fromEntries(STORES.map(k => [k, []]));
+
+function persist(k) {
+  if (CONFIG.api) {
+    fetch(`${CONFIG.api}?store=${k}${CONFIG.token ? '&token=' + CONFIG.token : ''}`,
+      { method: 'POST', body: JSON.stringify(state[k]) })
+      .catch(() => alert('서버 저장 실패 — 접속정보(config.php)를 확인하세요.'));
+  } else {
+    localStorage.setItem('klsi_' + k, JSON.stringify(state[k]));
+  }
+}
+
+const DB = {
+  load: k => state[k],
+  save(k, v) { state[k] = v; persist(k); },
+  uid: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+  add(k, rec) { rec.id = this.uid(); state[k].push(rec); persist(k); return rec; },
+  remove(k, id) { this.save(k, state[k].filter(r => r.id !== id)); }
+};
+
+async function boot() {
+  if (CONFIG.api) {
+    try {
+      const d = await (await fetch(`${CONFIG.api}?all=1${CONFIG.token ? '&token=' + CONFIG.token : ''}`)).json();
+      STORES.forEach(k => state[k] = Array.isArray(d[k]) ? d[k] : []);
+    } catch { alert('서버 연결 실패 — config.php / DB 설정을 확인하세요.'); }
+  } else {
+    STORES.forEach(k => state[k] = JSON.parse(localStorage.getItem('klsi_' + k) || '[]'));
+  }
+  route();
+}
 
 // ---------- 선택지 상수(드롭다운 고정) ----------
 const OPT = {
@@ -316,4 +345,4 @@ const app = {
 };
 
 window.addEventListener('hashchange', route);
-route();
+boot();

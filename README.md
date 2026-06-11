@@ -38,7 +38,26 @@ JavaScript + 브라우저 `localStorage`로 동작하며, cafe24 등 어떤 호�
 
 **데이터 공유/백업** — 상단의 *내보내기/가져오기*로 JSON 파일을 주고받아 백업하거나
 데이터를 공유합니다. localStorage는 브라우저별 저장이므로, 팀 전체 실시간 공유가
-필요하면 cafe24의 PHP+MySQL 백엔드로 확장할 수 있습니다.
+필요하면 아래의 cafe24 PHP+MySQL 백엔드로 확장하세요.
+
+### cafe24 팀 공유 백엔드 (선택)
+
+기본 상태(파일 업로드만)에서는 각자 브라우저에 저장됩니다. 아래 두 파일을 쓰면
+모든 구성원이 한 DB를 공유합니다.
+
+- `config.php` — cafe24 MySQL 접속정보. cafe24 매니저 > 나의서비스관리 > MySQL 에서
+  DB를 신청(무료)하고 비밀번호를 설정한 뒤, 호스트(`localhost`)·아이디·비밀번호·DB명을 채웁니다.
+- `api.php` — JSON 저장 API. 표(`kv`)는 첫 호출 때 자동 생성되므로 별도 설치가 없습니다.
+
+설정 절차:
+1. 전체 파일을 cafe24 웹폴더(`/www`)에 FTP 업로드.
+2. `config.php` 에 MySQL 접속정보 입력.
+3. `meeting.js` 상단 `CONFIG.api` 를 `'api.php'` 로 변경(같은 폴더 기준).
+4. 외부 공개 서버라면 `config.php` 의 `API_TOKEN` 과 `meeting.js` 의 `CONFIG.token` 을
+   동일한 값으로 설정해 간단히 보호.
+
+> cafe24 웹호스팅은 PHP와 MySQL을 기본 제공합니다(phpMyAdmin 포함). MySQL 지원 여부가
+> 불확실하면 cafe24 매니저의 MySQL 메뉴에서 DB 신청 가능 여부로 확인할 수 있습니다.
 
 ### index.html
 
