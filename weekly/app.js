@@ -368,9 +368,9 @@ window.app = {
     el.innerHTML =
       `<div class="phead">한국노동사회연구소 주간회의 자료 — ${md(curMon)} ~ ${md(addD(curMon, 4))}</div>` +
       pGrid(last, '지난주') + pGrid(curMon, '이번주') +
-      `<div class="pbreak"></div>` + pMeeting(curMon) +
+      `<div class="pbreak"></div>` + pResearch() +
       `<div class="pbreak"></div>` + pBiz() +
-      `<div class="pbreak"></div>` + pResearch();
+      `<div class="pbreak"></div>` + pMeeting(curMon);
     window.print();
   },
   exportJSON() {
