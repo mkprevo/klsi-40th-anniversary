@@ -10,15 +10,20 @@ klsi-40th-anniversary/
 ├── style.css        # 스타일 시트 (기념 사이트 + 주간회의 공통)
 ├── script.js        # D‑데이 계산과 카드뉴스 표시 로직
 ├── posts.json       # 카드뉴스 데이터를 저장하는 JSON 파일
-├── meeting.html     # 주간회의 업무관리 시스템 페이지
-├── meeting.js       # 주간회의 데이터층 + 입력/회의/관리 화면
+├── weekly/          # 주간회의 업무관리 (게시판 1개 = 하위 폴더, FileZilla로 통째 업로드)
+│   ├── index.html   #   3개 화면(입력/회의/관리)
+│   ├── app.js       #   데이터층 + 화면 로직
+│   ├── style.css    #   이 폴더 전용 스타일(독립 동작)
+│   ├── api.php      #   cafe24 공유 저장 API
+│   ├── config.php   #   MySQL 접속정보
+│   └── check.php    #   환경 진단 페이지
 ├── card1.png        # 예시 이미지 1
 ├── card2.png        # 예시 이미지 2
 ├── card3.png        # 예시 이미지 3
 └── README.md        # 사용 설명서
 ```
 
-## 주간회의 업무관리 시스템 (meeting.html)
+## 주간회의 업무관리 시스템 (weekly/ 폴더)
 
 사람 · 사업 · 일정을 연결하는 관계형 업무관리 도구입니다. 의존성 없이 바닐라
 JavaScript + 브라우저 `localStorage`로 동작하며, cafe24 등 어떤 호스팅에도
@@ -50,12 +55,12 @@ JavaScript + 브라우저 `localStorage`로 동작하며, cafe24 등 어떤 호�
 - `api.php` — JSON 저장 API. 표(`kv`)는 첫 호출 때 자동 생성되므로 별도 설치가 없습니다.
 
 설정 절차:
-1. 전체 파일을 cafe24 웹폴더(`/www`)에 FTP 업로드.
+1. `weekly/` 폴더를 통째로 cafe24의 사이트 하위(예: `40th_klsi/weekly/`)에 FileZilla로 업로드.
 2. `config.php` 에 MySQL 접속정보 입력.
-3. **`사이트주소/check.php` 에 접속해 PHP/MySQL 지원과 접속정보를 진단** (지원 여부가
+3. **`사이트주소/weekly/check.php` 에 접속해 PHP/MySQL 지원과 접속정보를 진단** (지원 여부가
    불확실할 때 가장 빠른 확인 방법, 확인 후 삭제 권장).
-4. 진단이 "성공"이면 `meeting.js` 상단 `CONFIG.api` 를 `'api.php'` 로 변경(같은 폴더 기준).
-5. 외부 공개 서버라면 `config.php` 의 `API_TOKEN` 과 `meeting.js` 의 `CONFIG.token` 을
+4. 진단이 "성공"이면 `weekly/app.js` 상단 `CONFIG.api` 를 `'api.php'` 로 변경(같은 폴더 기준).
+5. 외부 공개 서버라면 `config.php` 의 `API_TOKEN` 과 `app.js` 의 `CONFIG.token` 을
    동일한 값으로 설정해 간단히 보호.
 
 > cafe24 웹호스팅은 PHP와 MySQL을 기본 제공합니다(phpMyAdmin 포함). MySQL 지원 여부가
