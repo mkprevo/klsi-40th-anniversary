@@ -8,7 +8,7 @@
 require __DIR__ . '/config.php';
 header('Content-Type: application/json; charset=utf-8');
 
-$STORES = ['people', 'projects', 'members', 'meetings', 'entries', 'updates', 'schedule'];
+$STORES = ['people', 'sched', 'agenda', 'adminrec', 'members', 'biz', 'research'];
 
 // (선택) 토큰 검증
 if (API_TOKEN !== '' && ($_GET['token'] ?? '') !== API_TOKEN) {

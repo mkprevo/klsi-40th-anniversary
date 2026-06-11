@@ -1,19 +1,15 @@
-/* 주간회의 관계형 업무관리 — 바닐라 JS + localStorage
-   스토어(7): people, projects, members, meetings, entries, updates, schedule
-   1:1 관계(재정/회원변동)는 meetings 레코드에 필드로 병합해 단순화. */
+/* 주간회의 업무관리 — 구글문서/시트 이관형
+   화면: 주간일정표(사람×요일, 칸 직접 입력) · 주간회의(논의안건+행정/회원) · 사업 · 연구 · 구성원
+   저장: api.php(MySQL 팀 공유) / 서버 실패 시 localStorage 자동 폴백 */
 
 // ---------- 설정 ----------
-// api: 'api.php' = 팀 공유 모드(서버 MySQL에 저장, config.php 접속정보 필요).
-//      ''        = 이 브라우저(localStorage)에만 저장.
-// 서버 연결에 실패하면 자동으로 localStorage 모드로 내려가므로 사이트가 멈추지 않습니다.
 const CONFIG = { api: 'api.php', token: '' };
 
-// ---------- 데이터층 (메모리 캐시 + localStorage/서버 동기화) ----------
-const STORES = ['people', 'projects', 'members', 'meetings', 'entries', 'updates', 'schedule'];
+// ---------- 데이터층 ----------
+const STORES = ['people', 'sched', 'agenda', 'adminrec', 'members', 'biz', 'research'];
 let state = Object.fromEntries(STORES.map(k => [k, []]));
-let serverOk = false; // boot()에서 서버 연결 성공 시 true
+let serverOk = false;
 
-// 화면 상단에 현재 저장 모드 표시
 function setSyncStatus(ok, msg) {
   serverOk = ok;
   let el = document.getElementById('syncStatus');
@@ -28,352 +24,263 @@ function setSyncStatus(ok, msg) {
 }
 
 function persist(k) {
-  localStorage.setItem('klsi_' + k, JSON.stringify(state[k])); // 항상 로컬에도 백업
+  localStorage.setItem('klsi_' + k, JSON.stringify(state[k])); // 항상 로컬 백업
   if (CONFIG.api && serverOk) {
     fetch(`${CONFIG.api}?store=${k}${CONFIG.token ? '&token=' + CONFIG.token : ''}`,
       { method: 'POST', body: JSON.stringify(state[k]) })
       .then(r => { if (!r.ok) throw 0; })
-      .catch(() => setSyncStatus(false, '서버 저장 실패 — 이 브라우저에만 저장 중 (config.php 확인)'));
+      .catch(() => setSyncStatus(false, '서버 저장 실패 — 이 브라우저에만 저장 중'));
   }
 }
 
 const DB = {
-  load: k => state[k],
-  save(k, v) { state[k] = v; persist(k); },
   uid: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
   add(k, rec) { rec.id = this.uid(); state[k].push(rec); persist(k); return rec; },
-  remove(k, id) { this.save(k, state[k].filter(r => r.id !== id)); }
+  remove(k, id) { state[k] = state[k].filter(r => r.id !== id); persist(k); }
 };
 
-async function boot() {
-  // 1) 우선 로컬 백업본을 읽어 화면이 항상 뜨게 한다.
-  STORES.forEach(k => state[k] = JSON.parse(localStorage.getItem('klsi_' + k) || '[]'));
+// ---------- 주차 ----------
+function mondayOf(d) { d = new Date(d); d.setDate(d.getDate() - (d.getDay() + 6) % 7); d.setHours(0, 0, 0, 0); return d; }
+const addD = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const md = d => `${d.getMonth() + 1}월${d.getDate()}일`;
+let curMon = mondayOf(new Date());
 
-  // 2) 팀 공유 모드면 서버 데이터로 교체. 실패하면 로컬 모드로 폴백.
+// ---------- 초기 데이터(처음 1회만 자동 입력) ----------
+function seedDefaults() {
+  if (!state.people.length) {
+    ['김유선', '박혜경', '이명규', '윤효원', '이주환', '박용철', '송관철', '양은숙', '이상원']
+      .forEach(n => state.people.push({ id: DB.uid(), name: n }));
+    persist('people');
+  }
+  if (!state.biz.length) {
+    [['1', '홍보', ''], ['2', '노동포럼', '이주환'], ['3', '이슈페이퍼', '송관철'], ['4', '교육', '박혜경'],
+     ['5', '직장괴롭힘조사센터', '박용철'], ['6', '노동이사 과정', '이명규/윤효원'], ['7', '감사', '윤효원'], ['8', '기타', '']]
+      .forEach(([no, name, owner]) => state.biz.push({ id: DB.uid(), no, name, owner, content: '', note: '' }));
+    persist('biz');
+  }
+  if (!state.research.length) {
+    const R = [
+      ['2025', '1', '건설노조 교육원(가칭) 용역사업', '이명규', '박혜경', '최은계', '', '건설노조', '2025-05-07', '2026-06-30', '2,000', '1,000', '', '6/17 건설노조 중집회의에서 pt'],
+      ['2025', '2', '초등교사 노동 특수성과 직업병 연구', '송관철', '이주환, 장안석, 이진우, 이서영', '', 'O', '초등교사노조', '2025-11-01', '2026-06-30', '4,990', '2,994', '', '최종보고서 협의 중(계속)'],
+      ['2026', '1', '공공연대노동조합 조직 진단과 발전 방향', '이주환', '', '', '', '공공연대노조', '2026-01-19', '2026-04-30', '1,000', '', '', ''],
+      ['2026', '2', '전국교직원노동조합 광주지부·전남지부 조직진단 및 혁신방안', '박용철', '송관철', '', '', '전교조 광주지부·전남지부', '2026-04-15', '2026-10-15', '2,000', '', '', '계약체결 협의, 설문 마무리 및 인터뷰 개시 준비'],
+      ['2026', '3', '다중위기와 노동운동 3', '이주환', '김유선, 이문호, 권순미, 윤정향', '', '', '에버트재단', '', '2026-09-30', '1,950', '', '', '6월15일 2차 회의'],
+      ['2026', '4', '유통산업 초기업교섭 실태조사', '송관철', '', '', '', '한국노동연구원', '2026-04-01', '2026-08-30', '500', '250', '', '실태조사 진행(계속)'],
+      ['2026', '5', '업종별 노사관계 사례 조사 및 평가', '이주환(행정상)', '채준호, 박성국, 박운, 조현민', '', '', '한국노동연구원', '', '', '2,750', '', '', '계약 진행 중, 오버헤드 과제'],
+      ['2026', '6', '단체교섭의 사회적 기능과 방식에 관한 연구', '이명규', '이주환', '', '', '한국노동연구원', '', '', '1,750', '', '', '계약 준비 중, 오버헤드 과제'],
+      ['2026', '7', '선별장 등 실태조사 및 근로여건 개선방안 마련 연구', '이주환', '장안석', '', '', '한국노동연구원', '', '', '1,800', '', '', '계약 예정, 오버헤드 과제'],
+      ['2026', '8', '화학섬유노조 산별활동가 교육프로그램 설계', '이명규', '', '', '', '화섬식품노조', '', '', '1,500', '', '', ''],
+      ['2026', '9', '공공기관 노동이사제 운영 실태와 이사회 작동 변화 분석', '이명규', '', '', '', '국가공공기관노동이사협의회', '', '', '1,036', '', '', '계약 체결 예정'],
+      ['2026', '10', '서울 패션·봉제산업 실태조사 연구용역', '이명규', '이종수', '윤세정', '', '서울노사민정협의회', '', '', '약 3,600', '', '', '킥오프 회의'],
+      ['기타', '1', '노사상생협력교육사업 사업성과 분석 및 개선방안 연구', '박용철', '송관철', '', '', '노사발전재단', '2026-06', '2026-11', '700', '', '오버헤드 20%', '협의 및 계약 예정']
+    ];
+    R.forEach(([year, no, title, lead, fellows, asst, contract, client, start, end, amount, paid, approve, status]) =>
+      state.research.push({ id: DB.uid(), year, no, title, lead, fellows, asst, contract, client, start, end, amount, paid, approve, status }));
+    persist('research');
+  }
+}
+
+// ---------- 부팅 ----------
+async function boot() {
+  STORES.forEach(k => state[k] = JSON.parse(localStorage.getItem('klsi_' + k) || '[]'));
   if (CONFIG.api) {
     try {
       const r = await fetch(`${CONFIG.api}?all=1${CONFIG.token ? '&token=' + CONFIG.token : ''}`);
       if (!r.ok) throw 0;
       const d = await r.json();
       setSyncStatus(true, '팀 공유 모드 — 모든 구성원이 같은 데이터를 봅니다');
-
-      const serverEmpty = STORES.every(k => !Array.isArray(d[k]) || d[k].length === 0);
-      const localHas = STORES.some(k => state[k].length > 0);
-      if (serverEmpty && localHas &&
-          confirm('서버가 비어 있고 이 브라우저에 저장된 데이터가 있습니다.\n이 데이터를 서버로 올려 팀과 공유할까요?')) {
-        STORES.forEach(k => persist(k)); // 로컬 → 서버 1회 이관
-      } else {
-        STORES.forEach(k => state[k] = Array.isArray(d[k]) ? d[k] : []);
-      }
+      STORES.forEach(k => state[k] = Array.isArray(d[k]) ? d[k] : []);
     } catch {
-      setSyncStatus(false, '서버 연결 안 됨 — 이 브라우저에만 저장 중 (check.php로 진단)');
+      setSyncStatus(false, '서버 연결 안 됨 — 이 브라우저에만 저장 중');
     }
   }
+  seedDefaults();
+  // 칸 수정 → 자동 저장 (blur 시점)
+  document.getElementById('view').addEventListener('change', e => {
+    const el = e.target.closest('[data-store]');
+    if (!el) return;
+    const { store, id, field } = el.dataset;
+    const r = state[store].find(x => x.id === id);
+    if (r) { r[field] = el.value; persist(store); }
+  });
   route();
 }
 
-// ---------- 선택지 상수(드롭다운 고정) ----------
-const OPT = {
-  role: ['소장', '연구위원', '연구원', '교육', '총무'],
-  pstatus: ['상근', '3일상근', '1일상근', '비상근'],
-  field: ['연구', '교육', '재정', '회원', '센터'],
-  active: ['재직', '휴직', '종료'],
-  projType: ['연구', '교육', '이슈페이퍼', '노동포럼', '노동이사제', '괴롭힘센터', '기타'],
-  projStatus: ['예정', '진행', '검토', '완료', '보류'],
-  memberRole: ['총괄', '실무', '지원', '참여'],
-  updStatus: ['시작전', '진행중', '검토중', '완료', '지연'],
-  risk: ['없음', '일정지연', '예산', '외부협의', '인력'],
-  priority: ['낮음', '보통', '높음'],
-  slot: ['오전', '오후', '종일'],
-  schedType: ['회의', '출장', '집필', '강의', '면담', '행사', '행정', '휴가', '기타'],
-  visibility: ['전체', '운영진']
-};
-
 // ---------- 공통 헬퍼 ----------
 const esc = s => (s ?? '').toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-// data-* 바인딩 입력요소
-const bind = (store, id, field) => `data-store="${store}" data-id="${id}" data-field="${esc(field)}"`;
-const inp = (store, id, field, val, type = 'text') =>
-  `<input ${bind(store, id, field)} type="${type}" value="${esc(val)}">`;
-const area = (store, id, field, val, ph = '') =>
-  `<textarea ${bind(store, id, field)} rows="2" placeholder="${ph}">${esc(val)}</textarea>`;
-const sel = (store, id, field, val, opts) =>
-  `<select ${bind(store, id, field)}>${opts.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
-const nameOf = (k, id) => (DB.load(k).find(r => r.id === id) || {}).name || '';
+const bind = (store, id, field) => `data-store="${store}" data-id="${id}" data-field="${field}"`;
+const cell = (store, id, field, val, h = '') =>
+  `<td><textarea class="cell" style="${h}" ${bind(store, id, field)}>${esc(val)}</textarea></td>`;
+const icel = (store, id, field, val, w = '') =>
+  `<td><input class="cl" ${w ? `style="width:${w}"` : ''} ${bind(store, id, field)} value="${esc(val)}"></td>`;
+const delBtn = (store, id) => `<td class="pad"><button class="delbtn" onclick="app.del('${store}','${id}')">×</button></td>`;
+const amt = s => { const n = (s ?? '').toString().replace(/[^\d]/g, ''); return n ? parseInt(n, 10) : 0; };
+const fmtAmt = n => n.toLocaleString('ko-KR');
 
-// 수정한 폼값을 스토어별 1회 load/save로 일괄 저장 (효율)
-function persistForm(scope = document) {
-  const buf = {};
-  scope.querySelectorAll('[data-store]').forEach(el => {
-    const { store, id, field } = el.dataset;
-    ((buf[store] ||= {})[id] ||= {})[field] = el.value;
-  });
-  for (const store in buf) {
-    const list = DB.load(store);
-    list.forEach(r => buf[store][r.id] && Object.assign(r, buf[store][r.id]));
-    DB.save(store, list);
-  }
+function weekBar() {
+  return `<div class="wkbar">
+    <button onclick="app.shiftWeek(-1)">‹ 지난주</button>
+    <strong>${md(curMon)} ~ ${md(addD(curMon, 4))}</strong>
+    <button onclick="app.shiftWeek(1)">다음주 ›</button>
+    <button onclick="app.thisWeek()">이번 주</button>
+  </div>`;
+}
+
+// 주차별 레코드 확보(없으면 메모리에 생성 — 첫 수정 때 저장됨)
+function schedOf(pid, wk) {
+  let r = state.sched.find(s => s.week === wk && s.personId === pid);
+  if (!r) { r = { id: DB.uid(), week: wk, personId: pid, d0: '', d1: '', d2: '', d3: '', d4: '', note: '' }; state.sched.push(r); }
+  return r;
+}
+function adminOf(wk) {
+  let r = state.adminrec.find(s => s.week === wk);
+  if (!r) { r = { id: DB.uid(), week: wk, ops: '', hr: '', income: '', donation: '' }; state.adminrec.push(r); }
+  return r;
+}
+
+// ---------- 화면: 주간일정표 ----------
+function vGrid() {
+  const wk = ymd(curMon);
+  const days = [0, 1, 2, 3, 4].map(i => addD(curMon, i));
+  const head = `<tr><th style="width:90px">이름</th>${days.map((d, i) =>
+    `<th>${'월화수목금'[i]}<br>${md(d)}</th>`).join('')}<th style="width:14%">비고</th></tr>`;
+  const rows = state.people.map(p => {
+    const r = schedOf(p.id, wk);
+    return `<tr><th class="pname">${esc(p.name)}</th>` +
+      [0, 1, 2, 3, 4].map(i => cell('sched', r.id, 'd' + i, r['d' + i])).join('') +
+      cell('sched', r.id, 'note', r.note) + '</tr>';
+  }).join('');
+  return `<h3>주간일정표</h3>${weekBar()}
+    <div class="scroll"><table class="sheet">${head}${rows}</table></div>
+    <p class="hint">칸을 클릭해 바로 입력하세요. 다른 칸으로 이동하면 자동 저장됩니다. 예) (10:30) 주간회의</p>`;
+}
+
+// ---------- 화면: 주간회의 ----------
+function vMeeting() {
+  const wk = ymd(curMon);
+  const a = adminOf(wk);
+  const agendas = state.agenda.filter(r => r.week === wk);
+  const joins = state.members.filter(r => r.week === wk && r.kind === '가입');
+  const leaves = state.members.filter(r => r.week === wk && r.kind === '탈퇴');
+
+  const agendaRows = agendas.map((r, i) =>
+    `<tr><td class="pad">${i + 1}</td>${cell('agenda', r.id, 'text', r.text)}${cell('agenda', r.id, 'result', r.result)}${delBtn('agenda', r.id)}</tr>`).join('');
+
+  const mHead = c => `<tr><th>회원번호</th><th>회원명</th><th>소속</th><th>회원구분</th><th>결제방식</th><th>${c[0]}</th><th>${c[1]}</th><th></th></tr>`;
+  const mRow = r => `<tr>${icel('members', r.id, 'mno', r.mno, '70px')}${icel('members', r.id, 'name', r.name)}${icel('members', r.id, 'org', r.org)}${icel('members', r.id, 'grade', r.grade)}${icel('members', r.id, 'pay', r.pay)}${icel('members', r.id, 'date1', r.date1)}${icel('members', r.id, 'date2', r.date2)}${delBtn('members', r.id)}</tr>`;
+
+  return `<h3>주간회의</h3>${weekBar()}
+    <fieldset><legend>논의안건</legend>
+      <div class="scroll"><table class="sheet">
+        <tr><th style="width:36px">번호</th><th>안건</th><th>논의·결정</th><th style="width:36px"></th></tr>${agendaRows}
+      </table></div>
+      <div class="actions"><button onclick="app.addAgenda()">+ 안건 추가</button></div>
+    </fieldset>
+    <fieldset><legend>행정 / 회원</legend>
+      <div class="grid2">
+        <label>운영 및 행정<textarea class="box" ${bind('adminrec', a.id, 'ops')}>${esc(a.ops)}</textarea></label>
+        <label>인사<textarea class="box" ${bind('adminrec', a.id, 'hr')}>${esc(a.hr)}</textarea></label>
+        <label>수입현황 — 입금현황<textarea class="box" ${bind('adminrec', a.id, 'income')}>${esc(a.income)}</textarea></label>
+        <label>수입현황 — 후원비<textarea class="box" ${bind('adminrec', a.id, 'donation')}>${esc(a.donation)}</textarea></label>
+      </div>
+      <h4>회원 가입 (등록방식 / 가입일)</h4>
+      <div class="scroll"><table class="sheet">${mHead(['등록방식', '가입일'])}${joins.map(mRow).join('')}</table></div>
+      <div class="actions"><button onclick="app.addMember('가입')">+ 가입 추가</button></div>
+      <h4>회원 탈퇴 (시작일 / 해지일)</h4>
+      <div class="scroll"><table class="sheet">${mHead(['시작일', '해지일'])}${leaves.map(mRow).join('')}</table></div>
+      <div class="actions"><button onclick="app.addMember('탈퇴')">+ 탈퇴 추가</button></div>
+    </fieldset>`;
+}
+
+// ---------- 화면: 사업 ----------
+function vBiz() {
+  const rows = state.biz.map(r =>
+    `<tr>${icel('biz', r.id, 'no', r.no, '40px')}${icel('biz', r.id, 'name', r.name)}${icel('biz', r.id, 'owner', r.owner)}${cell('biz', r.id, 'content', r.content)}${cell('biz', r.id, 'note', r.note)}${delBtn('biz', r.id)}</tr>`).join('');
+  return `<h3>사업</h3>
+    <div class="scroll"><table class="sheet">
+      <tr><th style="width:46px">순번</th><th style="width:14%">사업명</th><th style="width:10%">담당자</th><th>주요 추진 내용</th><th style="width:22%">비고</th><th style="width:36px"></th></tr>
+      ${rows}</table></div>
+    <div class="actions"><button onclick="app.addBiz()">+ 사업 추가</button></div>
+    <p class="hint">이 표는 주차와 무관하게 유지됩니다. 추진 내용을 그때그때 갱신하세요.</p>`;
+}
+
+// ---------- 화면: 연구 ----------
+function vResearch() {
+  const years = [...new Set(state.research.map(r => r.year))].sort();
+  const head = `<tr><th>연번</th><th style="min-width:220px">연구과제명</th><th>책임자</th><th style="min-width:140px">연구위원</th><th>연구원</th><th>계약서</th><th style="min-width:120px">발주처</th><th>시작</th><th>종료</th><th>금액</th><th>입금액</th><th>결재</th><th style="min-width:160px">진행상황</th><th></th></tr>`;
+  const blocks = years.map(y => {
+    const rows = state.research.filter(r => r.year === y).map(r =>
+      `<tr>${icel('research', r.id, 'no', r.no, '36px')}${cell('research', r.id, 'title', r.title, 'min-height:40px')}${icel('research', r.id, 'lead', r.lead, '80px')}${cell('research', r.id, 'fellows', r.fellows, 'min-height:40px')}${icel('research', r.id, 'asst', r.asst, '70px')}${icel('research', r.id, 'contract', r.contract, '46px')}${icel('research', r.id, 'client', r.client)}${icel('research', r.id, 'start', r.start, '92px')}${icel('research', r.id, 'end', r.end, '92px')}${icel('research', r.id, 'amount', r.amount, '70px')}${icel('research', r.id, 'paid', r.paid, '70px')}${icel('research', r.id, 'approve', r.approve, '70px')}${cell('research', r.id, 'status', r.status, 'min-height:40px')}${delBtn('research', r.id)}</tr>`).join('');
+    return `<h4>${esc(y)}</h4><div class="scroll"><table class="sheet rsch">${head}${rows}</table></div>`;
+  }).join('');
+  const tot = state.research.reduce((s, r) => s + amt(r.amount), 0);
+  const totPaid = state.research.reduce((s, r) => s + amt(r.paid), 0);
+  return `<h3>연구 (용역 목록)</h3>${blocks}
+    <p><span class="badge">금액 합계 ${fmtAmt(tot)}</span> <span class="badge">입금액 합계 ${fmtAmt(totPaid)}</span> (단위: 만원)</p>
+    <div class="actions"><button onclick="app.addResearch()">+ 과제 추가</button></div>`;
+}
+
+// ---------- 화면: 구성원 ----------
+function vPeople() {
+  const rows = state.people.map(p =>
+    `<tr>${icel('people', p.id, 'name', p.name)}${delBtn('people', p.id)}</tr>`).join('');
+  return `<h3>구성원</h3>
+    <table class="sheet" style="max-width:360px"><tr><th>이름</th><th style="width:36px"></th></tr>${rows}</table>
+    <div class="actions">
+      <input id="npName" placeholder="새 구성원 이름" style="width:160px">
+      <button onclick="app.addPerson()">+ 추가</button>
+    </div>
+    <p class="hint">이름을 지워도 과거 일정 기록은 데이터에 남습니다. 표시 순서는 등록 순서입니다.</p>`;
 }
 
 // ---------- 라우터 ----------
+const VIEWS = { grid: vGrid, meeting: vMeeting, biz: vBiz, research: vResearch, people: vPeople };
 function route() {
-  const tab = location.hash.slice(1) || 'input';
+  const tab = location.hash.slice(1) || 'grid';
   document.querySelectorAll('.tabs a[data-tab]').forEach(a =>
     a.classList.toggle('active', a.dataset.tab === tab));
-  ({ input: viewInput, meeting: viewMeeting, admin: viewAdmin }[tab] || viewInput)();
+  document.getElementById('view').innerHTML = (VIEWS[tab] || vGrid)();
 }
-const render = html => { document.getElementById('view').innerHTML = html; };
-const reload = () => route();
+window.addEventListener('hashchange', route);
 
-// ---------- 주차 선택 헬퍼 ----------
-function weekPicker(selectedId, onchange) {
-  const ms = DB.load('meetings').sort((a, b) => (a.week < b.week ? 1 : -1));
-  return `<select onchange="${onchange}">
-    <option value="">— 주차 선택 —</option>
-    ${ms.map(m => `<option value="${m.id}" ${m.id === selectedId ? 'selected' : ''}>${esc(m.week)} (${esc(m.date)})</option>`).join('')}
-  </select>`;
-}
-
-// ========== 화면 1: 개인 입력 ==========
-let cur = { meetingId: '', personId: '' };
-
-function viewInput() {
-  const people = DB.load('people').filter(p => p.active !== '종료');
-  let html = `<h3>개인 주간입력</h3>
-    <div class="row">
-      <label>주차 ${weekPicker(cur.meetingId, 'app.pickWeek(this.value)')}</label>
-      <button onclick="app.newWeek()">+ 새 주차</button>
-      <label>내 이름
-        <select onchange="app.pickPerson(this.value)">
-          <option value="">— 이름 선택 —</option>
-          ${people.map(p => `<option value="${p.id}" ${p.id === cur.personId ? 'selected' : ''}>${esc(p.name)} (${esc(p.role)})</option>`).join('')}
-        </select>
-      </label>
-    </div>`;
-
-  if (!cur.meetingId || !cur.personId) {
-    return render(html + '<p class="hint">주차와 이름을 선택하면 담당 사업이 자동으로 표시됩니다.</p>');
-  }
-
-  const entry = getEntry(cur.meetingId, cur.personId);
-  const myProjects = DB.load('members').filter(m => m.personId === cur.personId);
-
-  html += `<form onsubmit="return false">
-    <fieldset><legend>이번 주 동향 (짧게)</legend>
-      <label>지난주 ${area('entries', entry.id, 'lastWeek', entry.lastWeek, '핵심 2~3줄')}</label>
-      <label>다음주 ${area('entries', entry.id, 'nextWeek', entry.nextWeek, '핵심 2~3줄')}</label>
-      <label>특이사항 ${inp('entries', entry.id, 'note', entry.note)}</label>
-    </fieldset>
-
-    <fieldset><legend>담당 사업 업데이트</legend>${
-      myProjects.length ? myProjects.map(m => {
-        const u = getUpdate(entry.id, m.projectId);
-        return `<div class="upd">
-          <strong>${esc(nameOf('projects', m.projectId))}</strong>
-          <div class="grid4">
-            <label>진행 ${sel('updates', u.id, 'status', u.status, OPT.updStatus)}</label>
-            <label>리스크 ${sel('updates', u.id, 'risk', u.risk, OPT.risk)}</label>
-            <label>중요도 ${sel('updates', u.id, 'priority', u.priority, OPT.priority)}</label>
-          </div>
-          <label>지난주 한 일 ${area('updates', u.id, 'did', u.did)}</label>
-          <label>다음주 할 일 ${area('updates', u.id, 'todo', u.todo)}</label>
-        </div>`;
-      }).join('') : '<p class="hint">담당 사업이 없습니다. “사람·사업 관리”에서 연결하세요.</p>'
-    }</fieldset>
-
-    <fieldset><legend>주간 일정</legend>
-      <table class="grid"><thead><tr><th>날짜</th><th>시간대</th><th>유형</th><th>관련 사업</th><th>내용</th><th>공개</th><th></th></tr></thead>
-      <tbody>${DB.load('schedule').filter(s => s.entryId === entry.id).map(s => `<tr>
-        <td>${inp('schedule', s.id, 'date', s.date, 'date')}</td>
-        <td>${sel('schedule', s.id, 'slot', s.slot, OPT.slot)}</td>
-        <td>${sel('schedule', s.id, 'type', s.type, OPT.schedType)}</td>
-        <td>${projectSelect('schedule', s.id, 'projectId', s.projectId)}</td>
-        <td>${inp('schedule', s.id, 'content', s.content)}</td>
-        <td>${sel('schedule', s.id, 'visibility', s.visibility, OPT.visibility)}</td>
-        <td><button onclick="app.delRow('schedule','${s.id}')">×</button></td>
-      </tr>`).join('')}</tbody></table>
-      <button onclick="app.addSchedule('${entry.id}')">+ 일정 추가</button>
-    </fieldset>
-
-    <div class="actions">
-      <button class="primary" onclick="app.save('제출', '${entry.id}')">제출</button>
-      <button onclick="app.save('임시저장')">임시저장</button>
-      <span class="hint">제출상태: ${esc(entry.submitted || '임시저장')}</span>
-    </div>
-  </form>`;
-  render(html);
-}
-
-const projectSelect = (store, id, field, val) => `<select ${bind(store, id, field)}>
-  <option value="">—</option>
-  ${DB.load('projects').map(p => `<option value="${p.id}" ${p.id === val ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
-</select>`;
-
-function getEntry(meetingId, personId) {
-  return DB.load('entries').find(e => e.meetingId === meetingId && e.personId === personId)
-    || DB.add('entries', { meetingId, personId, lastWeek: '', nextWeek: '', note: '', submitted: '임시저장' });
-}
-function getUpdate(entryId, projectId) {
-  return DB.load('updates').find(u => u.entryId === entryId && u.projectId === projectId)
-    || DB.add('updates', { entryId, projectId, status: '진행중', did: '', todo: '', risk: '없음', priority: '보통' });
-}
-
-// ========== 화면 2: 주간회의 종합 ==========
-function viewMeeting() {
-  let html = `<h3>주간회의 종합</h3>
-    <div class="row"><label>주차 ${weekPicker(cur.meetingId, 'app.pickWeek(this.value, true)')}</label></div>`;
-  if (!cur.meetingId) return render(html + '<p class="hint">주차를 선택하세요.</p>');
-
-  const m = DB.load('meetings').find(x => x.id === cur.meetingId);
-  const entries = DB.load('entries').filter(e => e.meetingId === cur.meetingId);
-  const updates = DB.load('updates');
-  const entryIds = entries.map(e => e.id);
-  const myUpdates = updates.filter(u => entryIds.includes(u.entryId));
-
-  // 상단: 회원변동 + 재정
-  html += `<form onsubmit="return false"><div class="grid2">
-    <fieldset><legend>회원 변동</legend>
-      <label>신규 ${inp('meetings', m.id, 'memJoined', m.memJoined, 'number')}</label>
-      <label>탈퇴 ${inp('meetings', m.id, 'memLeft', m.memLeft, 'number')}</label>
-      <label>메모 ${inp('meetings', m.id, 'memNote', m.memNote)}</label>
-    </fieldset>
-    <fieldset><legend>주간 재정</legend>
-      <label>수입 ${inp('meetings', m.id, 'finIncome', m.finIncome, 'number')}</label>
-      <label>지출 ${inp('meetings', m.id, 'finExpense', m.finExpense, 'number')}</label>
-      <label>특기 ${inp('meetings', m.id, 'finNote', m.finNote)}</label>
-    </fieldset></div>
-    <div class="actions"><button class="primary" onclick="app.save('마감')">재정·회원 저장</button></div></form>`;
-
-  // 중간: 사람별 동향
-  html += `<fieldset><legend>사람별 동향</legend>${
-    entries.length ? `<table class="grid"><thead><tr><th>이름</th><th>지난주</th><th>다음주</th><th>상태</th></tr></thead><tbody>${
-      entries.map(e => `<tr><td>${esc(nameOf('people', e.personId))}</td>
-        <td>${esc(e.lastWeek)}</td><td>${esc(e.nextWeek)}</td>
-        <td><span class="badge">${esc(e.submitted || '임시저장')}</span></td></tr>`).join('')
-    }</tbody></table>` : '<p class="hint">입력된 내용이 없습니다.</p>'
-  }</fieldset>`;
-
-  // 하단: 사업유형별 진행상황
-  html += '<fieldset><legend>사업별 진행상황</legend>';
-  OPT.projType.forEach(type => {
-    const rows = myUpdates.filter(u => {
-      const p = DB.load('projects').find(x => x.id === u.projectId);
-      return p && p.type === type;
-    });
-    if (!rows.length) return;
-    html += `<h4>${type}</h4><table class="grid"><thead><tr><th>사업</th><th>담당</th><th>진행</th><th>다음주 할 일</th><th>리스크</th><th>중요도</th></tr></thead><tbody>${
-      rows.map(u => {
-        const e = entries.find(x => x.id === u.entryId);
-        return `<tr><td>${esc(nameOf('projects', u.projectId))}</td>
-          <td>${esc(e ? nameOf('people', e.personId) : '')}</td>
-          <td><span class="badge">${esc(u.status)}</span></td>
-          <td>${esc(u.todo)}</td>
-          <td>${u.risk !== '없음' ? `<span class="risk">${esc(u.risk)}</span>` : '-'}</td>
-          <td>${esc(u.priority)}</td></tr>`;
-      }).join('')
-    }</tbody></table>`;
-  });
-  html += '</fieldset>';
-  render(html);
-}
-
-// ========== 화면 3: 사람·사업 관리 ==========
-function viewAdmin() {
-  render(`<h3>사람 · 사업 관리</h3>
-    ${crudTable('people', '사람', [
-      { k: 'name', label: '이름' },
-      { k: 'role', label: '역할', opts: OPT.role },
-      { k: 'pstatus', label: '근무', opts: OPT.pstatus },
-      { k: 'field', label: '담당분야', opts: OPT.field },
-      { k: 'active', label: '상태', opts: OPT.active }
-    ])}
-    ${crudTable('projects', '사업', [
-      { k: 'name', label: '사업명' },
-      { k: 'type', label: '유형', opts: OPT.projType },
-      { k: 'status', label: '상태', opts: OPT.projStatus },
-      { k: 'start', label: '시작', type: 'date' },
-      { k: 'end', label: '종료', type: 'date' },
-      { k: 'note', label: '비고' }
-    ])}
-    ${membersTable()}`);
-}
-
-// 사람/사업 공용 CRUD 테이블
-function crudTable(store, title, fields) {
-  const rows = DB.load(store);
-  return `<fieldset><legend>${title} (${rows.length})</legend>
-    <table class="grid"><thead><tr>${fields.map(f => `<th>${f.label}</th>`).join('')}<th></th></tr></thead>
-    <tbody>${rows.map(r => `<tr>${fields.map(f =>
-      `<td>${f.opts ? sel(store, r.id, f.k, r[f.k], f.opts) : inp(store, r.id, f.k, r[f.k], f.type || 'text')}</td>`).join('')
-      }<td><button onclick="app.delRow('${store}','${r.id}')">×</button></td></tr>`).join('')}</tbody></table>
-    <div class="actions"><button onclick="app.addRow('${store}')">+ 추가</button>
-      <button class="primary" onclick="app.save()">저장</button></div></fieldset>`;
-}
-
-// 사람-사업 연결(N:M)
-function membersTable() {
-  const people = DB.load('people'), projects = DB.load('projects'), members = DB.load('members');
-  const pick = (store, id, field, val, list) => `<select ${bind(store, id, field)}>
-    <option value="">—</option>${list.map(x => `<option value="${x.id}" ${x.id === val ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`;
-  return `<fieldset><legend>사람–사업 연결 (${members.length})</legend>
-    <table class="grid"><thead><tr><th>사람</th><th>사업</th><th>역할</th><th>주담당</th><th></th></tr></thead>
-    <tbody>${members.map(m => `<tr>
-      <td>${pick('members', m.id, 'personId', m.personId, people)}</td>
-      <td>${pick('members', m.id, 'projectId', m.projectId, projects)}</td>
-      <td>${sel('members', m.id, 'role', m.role, OPT.memberRole)}</td>
-      <td style="text-align:center">${sel('members', m.id, 'primary', m.primary, ['예', '아니오'])}</td>
-      <td><button onclick="app.delRow('members','${m.id}')">×</button></td></tr>`).join('')}</tbody></table>
-    <div class="actions"><button onclick="app.addRow('members')">+ 연결 추가</button>
-      <button class="primary" onclick="app.save()">저장</button></div></fieldset>`;
-}
-
-// ---------- 액션(전역 app) ----------
-const app = {
-  pickWeek(id) { persistForm(); cur.meetingId = id; reload(); },
-  pickPerson(id) { persistForm(); cur.personId = id; reload(); },
-  newWeek() {
-    const week = prompt('주차 (예: 2026-06-2주)');
-    if (!week) return;
-    const m = DB.add('meetings', { week, date: new Date().toISOString().slice(0, 10), status: '작성중' });
-    cur.meetingId = m.id; reload();
+// ---------- 동작 ----------
+window.app = {
+  shiftWeek(n) { curMon = addD(curMon, 7 * n); route(); },
+  thisWeek() { curMon = mondayOf(new Date()); route(); },
+  addAgenda() { DB.add('agenda', { week: ymd(curMon), text: '', result: '' }); route(); },
+  addMember(kind) { DB.add('members', { week: ymd(curMon), kind, mno: '', name: '', org: '', grade: '', pay: '', date1: '', date2: '' }); route(); },
+  addBiz() { DB.add('biz', { no: String(state.biz.length + 1), name: '', owner: '', content: '', note: '' }); route(); },
+  addResearch() {
+    const year = prompt('연도(예: 2026, 기타)', String(new Date().getFullYear()));
+    if (year === null) return;
+    DB.add('research', { year: year || '기타', no: '', title: '', lead: '', fellows: '', asst: '', contract: '', client: '', start: '', end: '', amount: '', paid: '', approve: '', status: '' });
+    route();
   },
-  addSchedule(entryId) {
-    persistForm();
-    DB.add('schedule', { entryId, personId: cur.personId, projectId: '', date: '', slot: '오전', type: '회의', content: '', visibility: '전체' });
-    reload();
+  addPerson() {
+    const name = document.getElementById('npName').value.trim();
+    if (!name) return;
+    DB.add('people', { name }); route();
   },
-  addRow(store) { persistForm(); DB.add(store, { name: '', active: '재직', status: '진행' }); reload(); },
-  delRow(store, id) { persistForm(); DB.remove(store, id); reload(); },
-  save(state, entryId) {
-    persistForm();
-    if (state && entryId) {
-      const l = DB.load('entries'); const e = l.find(x => x.id === entryId);
-      if (e) { e.submitted = state; DB.save('entries', l); }
-    }
-    reload();
-    alert(state ? state + ' 완료' : '저장되었습니다.');
-  },
+  del(store, id) { if (confirm('이 행을 삭제할까요?')) { DB.remove(store, id); route(); } },
   exportJSON() {
-    const data = Object.fromEntries(STORES.map(k => [k, DB.load(k)]));
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-    a.download = `klsi-주간회의-${new Date().toISOString().slice(0, 10)}.json`;
+    a.href = URL.createObjectURL(blob);
+    a.download = `klsi_weekly_${ymd(new Date())}.json`;
     a.click();
   },
   importJSON(input) {
-    const file = input.files[0]; if (!file) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        const data = JSON.parse(r.result);
-        if (!confirm('현재 데이터를 덮어씁니다. 진행할까요?')) return;
-        STORES.forEach(k => Array.isArray(data[k]) && DB.save(k, data[k]));
-        reload(); alert('가져오기 완료');
-      } catch { alert('잘못된 파일입니다.'); }
-    };
-    r.readAsText(file); input.value = '';
+    const f = input.files[0];
+    if (!f) return;
+    f.text().then(t => {
+      const d = JSON.parse(t);
+      if (!confirm('가져온 파일로 현재 데이터를 덮어씁니다. 계속할까요?')) return;
+      STORES.forEach(k => { if (Array.isArray(d[k])) { state[k] = d[k]; persist(k); } });
+      route();
+    }).catch(() => alert('JSON 파일을 읽을 수 없습니다.'));
+    input.value = '';
   }
 };
 
-window.addEventListener('hashchange', route);
 boot();
