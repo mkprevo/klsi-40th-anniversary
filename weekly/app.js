@@ -216,17 +216,18 @@ function adminOf(wk) {
 function vGrid() {
   const wk = ymd(curMon);
   const days = [0, 1, 2, 3, 4].map(i => addD(curMon, i));
-  const head = `<tr><th style="width:90px">이름</th>${days.map((d, i) =>
+  const head = `<tr><th class="pname" style="width:90px">이름</th>${days.map((d, i) =>
     `<th>${'월화수목금'[i]}<br>${md(d)}</th>`).join('')}<th style="width:14%">비고</th></tr>`;
   const rows = state.people.map(p => {
     const r = schedOf(p.id, wk);
-    return `<tr><th class="pname">${esc(p.name)}</th>` +
-      [0, 1, 2, 3, 4].map(i => cell('sched', r.id, 'd' + i, r['d' + i])).join('') +
-      cell('sched', r.id, 'note', r.note) + '</tr>';
+    const dcells = [0, 1, 2, 3, 4].map(i =>
+      `<td data-label="${'월화수목금'[i]} ${md(days[i])}"><textarea class="cell" ${bind('sched', r.id, 'd' + i)}>${esc(r['d' + i])}</textarea></td>`).join('');
+    return `<tr><th class="pname">${esc(p.name)}</th>${dcells}` +
+      `<td data-label="비고"><textarea class="cell" ${bind('sched', r.id, 'note')}>${esc(r.note)}</textarea></td></tr>`;
   }).join('');
   return `<h3>주간일정표</h3>${weekBar()}
-    <div class="scroll"><table class="sheet">${head}${rows}</table></div>
-    <p class="hint">칸을 클릭해 바로 입력하세요. 다른 칸으로 이동하면 자동 저장됩니다. 예) (10:30) 주간회의</p>`;
+    <div class="scroll"><table class="sheet grid">${head}${rows}</table></div>
+    <p class="hint">칸을 눌러 바로 입력하세요. 다른 칸으로 이동하면 자동 저장됩니다. 예) (10:30) 주간회의</p>`;
 }
 
 // ---------- 화면: 주간회의 ----------

@@ -93,15 +93,39 @@ table.mtx td.r-위원, table.mtx td.r-연구원 { background: #d4efe9; color: #1
 .legend li { margin-bottom: 3px; }
 table.mtx th { white-space: normal; }
 table.mtx th.nm { white-space: nowrap; }
-@media (max-width: 600px) { .legend ul { columns: 1; } }
 
 button.print-btn { background: #1abc9c; color: #fff; border-color: #16a085; }
 button.print-btn:hover { background: #16a085; }
 
+/* ---------- 모바일 ---------- */
 @media (max-width: 768px) {
+    .container { padding: 12px; }
+    header { padding: 12px 14px 10px; }
+    header h1 { font-size: 1.3rem; }
+    header h2 { font-size: 0.85rem; }
+
+    .tabs { padding: 0 6px; }
+    .tabs a, .import-btn { padding: 12px 10px; font-size: 0.92rem; }
+    .tab-tools { margin-left: 0; width: 100%; }
+
     .grid2 { grid-template-columns: 1fr; }
-    .tab-tools { margin-left: 0; }
+    .scroll { -webkit-overflow-scrolling: touch; }
+    .wkbar { gap: 8px; }
+    button, .wkbar button { padding: 9px 14px; }
+
+    /* iOS 입력 시 자동 확대 방지 (16px 미만이면 확대됨) */
+    input, select, textarea, input.cl, select.cl, textarea.cell, textarea.box { font-size: 16px; }
+
+    /* 주간일정표: 좁은 화면에서는 가로 표 대신 '사람별 카드'로 전환 */
+    table.sheet.grid, table.sheet.grid tbody, table.sheet.grid tr, table.sheet.grid td { display: block; width: auto; }
+    table.sheet.grid tr:first-child { display: none; } /* 요일 헤더행 숨김 (라벨로 대체) */
+    table.sheet.grid tr { border: 1px solid #ccc; border-radius: 8px; margin: 0 0 12px; overflow: hidden; background: #fff; }
+    table.sheet.grid th.pname { display: block; width: auto; background: #2c3e50; color: #fff; text-align: left; font-size: 1rem; padding: 10px 12px; }
+    table.sheet.grid td { display: flex; align-items: stretch; border: 0; border-top: 1px solid #eee; }
+    table.sheet.grid td::before { content: attr(data-label); flex: 0 0 72px; padding: 8px; background: #f5f7f8; color: #555; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; }
+    table.sheet.grid td textarea.cell { min-height: 44px; }
 }
+@media (max-width: 600px) { .legend ul { columns: 1; } }
 
 /* ---------- 인쇄 ---------- */
 #printArea { display: none; }
