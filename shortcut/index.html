@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <!-- 단축 주소용 자동이동 페이지.
+       이 폴더(index.html)를 cafe24의 /www 아래에 '회의' 같은 짧은 이름으로 올리면
+       40th.klsi.org/회의/ 로 접속했을 때 주간회의 게시판으로 자동 이동합니다.
+       이동 대상 주소가 바뀌면 아래 TARGET 한 줄만 고치세요. -->
+  <meta http-equiv="refresh" content="0; url=https://40th.klsi.org/40th/weekly/">
+  <title>주간회의 업무관리로 이동 중…</title>
+  <script>
+    var TARGET = "https://40th.klsi.org/40th/weekly/";
+    location.replace(TARGET);
+  </script>
+  <style>
+    body { font-family: 'Nanum Gothic', sans-serif; text-align: center; padding: 60px 20px; color: #2c3e50; }
+    a { color: #16a085; }
+  </style>
+</head>
+<body>
+  <p>주간회의 업무관리 게시판으로 이동 중입니다…</p>
+  <p>자동으로 넘어가지 않으면 <a href="https://40th.klsi.org/40th/weekly/">여기를 클릭</a>하세요.</p>
+</body>
+</html>
