@@ -116,14 +116,19 @@ button.print-btn:hover { background: #16a085; }
     /* iOS 입력 시 자동 확대 방지 (16px 미만이면 확대됨) */
     input, select, textarea, input.cl, select.cl, textarea.cell, textarea.box { font-size: 16px; }
 
-    /* 주간일정표: 좁은 화면에서는 가로 표 대신 '사람별 카드'로 전환 */
-    table.sheet.grid, table.sheet.grid tbody, table.sheet.grid tr, table.sheet.grid td { display: block; width: auto; }
-    table.sheet.grid tr:first-child { display: none; } /* 요일 헤더행 숨김 (라벨로 대체) */
-    table.sheet.grid tr { border: 1px solid #ccc; border-radius: 8px; margin: 0 0 12px; overflow: hidden; background: #fff; }
+    /* 카드형 표: 좁은 화면에서 가로 표 대신 항목별 카드로 전환 (주간일정표 + 사업) */
+    table.sheet.grid, table.sheet.grid tbody, table.sheet.grid tr, table.sheet.grid td,
+    table.sheet.card, table.sheet.card tbody, table.sheet.card tr, table.sheet.card td { display: block; width: auto; }
+    table.sheet.grid tr:first-child, table.sheet.card tr:first-child { display: none; } /* 헤더행 숨김 (라벨로 대체) */
+    table.sheet.grid tr, table.sheet.card tr { border: 1px solid #ccc; border-radius: 8px; margin: 0 0 12px; overflow: hidden; background: #fff; }
+    table.sheet.grid td, table.sheet.card td { display: flex; align-items: stretch; border: 0; border-top: 1px solid #eee; }
+    table.sheet.grid td::before, table.sheet.card td::before { content: attr(data-label); flex: 0 0 72px; padding: 8px; background: #f5f7f8; color: #555; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; }
+    table.sheet.grid td textarea.cell, table.sheet.card td textarea.cell { min-height: 44px; }
+    /* 주간일정표는 사람 이름을 카드 머리로 */
     table.sheet.grid th.pname { display: block; width: auto; background: #2c3e50; color: #fff; text-align: left; font-size: 1rem; padding: 10px 12px; }
-    table.sheet.grid td { display: flex; align-items: stretch; border: 0; border-top: 1px solid #eee; }
-    table.sheet.grid td::before { content: attr(data-label); flex: 0 0 72px; padding: 8px; background: #f5f7f8; color: #555; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; }
-    table.sheet.grid td textarea.cell { min-height: 44px; }
+    /* 사업 카드: 사업명 줄을 강조, 삭제 버튼 오른쪽 정렬 */
+    table.sheet.card td.pad { justify-content: flex-end; padding: 6px 8px; }
+    table.sheet.card td.pad::before { content: "삭제"; flex: 1; background: none; padding: 0; color: #888; }
 }
 @media (max-width: 600px) { .legend ul { columns: 1; } }
 

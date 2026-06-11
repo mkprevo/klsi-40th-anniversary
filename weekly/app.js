@@ -270,9 +270,16 @@ function vMeeting() {
 // ---------- 화면: 사업 ----------
 function vBiz() {
   const rows = state.biz.map(r =>
-    `<tr>${icel('biz', r.id, 'no', r.no, '40px')}${icel('biz', r.id, 'name', r.name)}${icel('biz', r.id, 'owner', r.owner)}${cell('biz', r.id, 'content', r.content)}${cell('biz', r.id, 'note', r.note)}${delBtn('biz', r.id)}</tr>`).join('');
+    `<tr>` +
+      `<td data-label="순번"><input class="cl" style="width:40px" ${bind('biz', r.id, 'no')} value="${esc(r.no)}"></td>` +
+      `<td data-label="사업명"><input class="cl" ${bind('biz', r.id, 'name')} value="${esc(r.name)}"></td>` +
+      `<td data-label="담당자"><input class="cl" ${bind('biz', r.id, 'owner')} value="${esc(r.owner)}"></td>` +
+      `<td data-label="주요 추진 내용"><textarea class="cell" ${bind('biz', r.id, 'content')}>${esc(r.content)}</textarea></td>` +
+      `<td data-label="비고"><textarea class="cell" ${bind('biz', r.id, 'note')}>${esc(r.note)}</textarea></td>` +
+      `<td class="pad" data-label="삭제"><button class="delbtn" onclick="app.del('biz','${r.id}')">×</button></td>` +
+    `</tr>`).join('');
   return `<h3>사업</h3>
-    <div class="scroll"><table class="sheet">
+    <div class="scroll"><table class="sheet card">
       <tr><th style="width:46px">순번</th><th style="width:14%">사업명</th><th style="width:10%">담당자</th><th>주요 추진 내용</th><th style="width:22%">비고</th><th style="width:36px"></th></tr>
       ${rows}</table></div>
     <div class="actions"><button onclick="app.addBiz()">+ 사업 추가</button></div>
