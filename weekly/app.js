@@ -54,29 +54,53 @@ function seedDefaults() {
     persist('people');
   }
   if (!state.biz.length) {
-    [['1', '홍보', ''], ['2', '노동포럼', '이주환'], ['3', '이슈페이퍼', '송관철'], ['4', '교육', '박혜경'],
-     ['5', '직장괴롭힘조사센터', '박용철'], ['6', '노동이사 과정', '이명규/윤효원'], ['7', '감사', '윤효원'], ['8', '기타', '']]
+    [['1', '홍보', '이상원'], ['2', '노동포럼', '이주환'], ['3', '이슈페이퍼', '송관철'], ['4', '교육', '박혜경/이상원'],
+     ['5', '직장괴롭힘조사센터', '박용철'], ['6', '노동이사제', '이명규/윤효원'], ['7', 'e노동사회', '윤효원']]
       .forEach(([no, name, owner]) => state.biz.push({ id: DB.uid(), no, name, owner, content: '', note: '' }));
     persist('biz');
   }
   if (!state.research.length) {
     const R = [
-      ['2025', '1', '건설노조 교육원(가칭) 용역사업', '이명규', '박혜경', '최은계', '', '건설노조', '2025-05-07', '2026-06-30', '2,000', '1,000', '', '6/17 건설노조 중집회의에서 pt'],
-      ['2025', '2', '초등교사 노동 특수성과 직업병 연구', '송관철', '이주환, 장안석, 이진우, 이서영', '', 'O', '초등교사노조', '2025-11-01', '2026-06-30', '4,990', '2,994', '', '최종보고서 협의 중(계속)'],
-      ['2026', '1', '공공연대노동조합 조직 진단과 발전 방향', '이주환', '', '', '', '공공연대노조', '2026-01-19', '2026-04-30', '1,000', '', '', ''],
-      ['2026', '2', '전국교직원노동조합 광주지부·전남지부 조직진단 및 혁신방안', '박용철', '송관철', '', '', '전교조 광주지부·전남지부', '2026-04-15', '2026-10-15', '2,000', '', '', '계약체결 협의, 설문 마무리 및 인터뷰 개시 준비'],
-      ['2026', '3', '다중위기와 노동운동 3', '이주환', '김유선, 이문호, 권순미, 윤정향', '', '', '에버트재단', '', '2026-09-30', '1,950', '', '', '6월15일 2차 회의'],
-      ['2026', '4', '유통산업 초기업교섭 실태조사', '송관철', '', '', '', '한국노동연구원', '2026-04-01', '2026-08-30', '500', '250', '', '실태조사 진행(계속)'],
-      ['2026', '5', '업종별 노사관계 사례 조사 및 평가', '이주환(행정상)', '채준호, 박성국, 박운, 조현민', '', '', '한국노동연구원', '', '', '2,750', '', '', '계약 진행 중, 오버헤드 과제'],
-      ['2026', '6', '단체교섭의 사회적 기능과 방식에 관한 연구', '이명규', '이주환', '', '', '한국노동연구원', '', '', '1,750', '', '', '계약 준비 중, 오버헤드 과제'],
-      ['2026', '7', '선별장 등 실태조사 및 근로여건 개선방안 마련 연구', '이주환', '장안석', '', '', '한국노동연구원', '', '', '1,800', '', '', '계약 예정, 오버헤드 과제'],
-      ['2026', '8', '화학섬유노조 산별활동가 교육프로그램 설계', '이명규', '', '', '', '화섬식품노조', '', '', '1,500', '', '', ''],
-      ['2026', '9', '공공기관 노동이사제 운영 실태와 이사회 작동 변화 분석', '이명규', '', '', '', '국가공공기관노동이사협의회', '', '', '1,036', '', '', '계약 체결 예정'],
-      ['2026', '10', '서울 패션·봉제산업 실태조사 연구용역', '이명규', '이종수', '윤세정', '', '서울노사민정협의회', '', '', '약 3,600', '', '', '킥오프 회의'],
-      ['기타', '1', '노사상생협력교육사업 사업성과 분석 및 개선방안 연구', '박용철', '송관철', '', '', '노사발전재단', '2026-06', '2026-11', '700', '', '오버헤드 20%', '협의 및 계약 예정']
+      ['진행', '2025', '1', '건설노조 교육원(가칭) 용역사업', '이명규', '박혜경', '최은계', '', '건설노조', '2025-05-07', '2026-06-30', '2,000', '1,000', '', '6/17 건설노조 중집회의에서 pt'],
+      ['진행', '2025', '2', '초등교사 노동 특수성과 직업병 연구', '송관철', '이주환, 장안석, 이진우, 이서영', '', 'O', '초등교사노조', '2025-11-01', '2026-06-30', '4,990', '2,994', '', '최종보고서 협의 중(계속)'],
+      ['진행', '2026', '1', '공공연대노동조합 조직 진단과 발전 방향', '이주환', '', '', '', '공공연대노조', '2026-01-19', '2026-04-30', '1,000', '', '', ''],
+      ['진행', '2026', '2', '전국교직원노동조합 광주지부·전남지부 조직진단 및 혁신방안', '박용철', '송관철', '', '', '전교조 광주지부·전남지부', '2026-04-15', '2026-10-15', '2,000', '', '', '계약체결 협의, 설문 마무리 및 인터뷰 개시 준비'],
+      ['진행', '2026', '3', '다중위기와 노동운동 3', '이주환', '김유선, 이문호, 권순미, 윤정향', '', '', '에버트재단', '', '2026-09-30', '1,950', '', '', '6월15일 2차 회의'],
+      ['진행', '2026', '4', '유통산업 초기업교섭 실태조사', '송관철', '', '', '', '한국노동연구원', '2026-04-01', '2026-08-30', '500', '250', '', '실태조사 진행(계속)'],
+      ['진행', '2026', '5', '서울 패션·봉제산업 실태조사 연구용역', '이명규', '이종수', '윤세정', '', '서울노사민정협의회', '', '', '약 3,600', '', '', '킥오프 회의'],
+      ['응모', '2026', '1', '업종별 노사관계 사례 조사 및 평가', '이주환(행정상)', '채준호, 박성국, 박운, 조현민', '', '', '한국노동연구원', '', '', '2,750', '', '', '계약 진행 중, 오버헤드 과제'],
+      ['응모', '2026', '2', '단체교섭의 사회적 기능과 방식에 관한 연구', '이명규', '이주환', '', '', '한국노동연구원', '', '', '1,750', '', '', '계약 준비 중, 오버헤드 과제'],
+      ['응모', '2026', '3', '선별장 등 실태조사 및 근로여건 개선방안 마련 연구', '이주환', '장안석', '', '', '한국노동연구원', '', '', '1,800', '', '', '계약 예정, 오버헤드 과제'],
+      ['응모', '2026', '4', '화학섬유노조 산별활동가 교육프로그램 설계', '이명규', '', '', '', '화섬식품노조', '', '', '1,500', '', '', ''],
+      ['응모', '2026', '5', '공공기관 노동이사제 운영 실태와 이사회 작동 변화 분석', '이명규', '', '', '', '국가공공기관노동이사협의회', '', '', '1,036', '', '', '계약 체결 예정'],
+      ['응모', '2026', '6', '노사상생협력교육사업 사업성과 분석 및 개선방안 연구', '박용철', '송관철', '', '', '노사발전재단', '2026-06', '2026-11', '700', '', '오버헤드 20%', '협의 및 계약 예정']
     ];
-    R.forEach(([year, no, title, lead, fellows, asst, contract, client, start, end, amount, paid, approve, status]) =>
-      state.research.push({ id: DB.uid(), year, no, title, lead, fellows, asst, contract, client, start, end, amount, paid, approve, status }));
+    R.forEach(([cat, year, no, title, lead, fellows, asst, contract, client, start, end, amount, paid, approve, status]) =>
+      state.research.push({ id: DB.uid(), cat, year, no, title, lead, fellows, asst, contract, client, start, end, amount, paid, approve, status }));
+    persist('research');
+  }
+}
+
+// ---------- 기존 서버 데이터 보정(2026-06 개편 반영, 1회 자동 실행) ----------
+function migrate() {
+  // 사업: 노동이사제 개칭, 감사·기타 삭제, e노동사회 추가, 담당자 보정
+  if (state.biz.length && !state.biz.some(b => b.name === 'e노동사회')) {
+    state.biz = state.biz.filter(b => b.name !== '감사' && b.name !== '기타');
+    state.biz.forEach(b => {
+      if (b.name === '노동이사 과정') b.name = '노동이사제';
+      if (b.name === '홍보' && !b.owner) b.owner = '이상원';
+      if (b.name === '교육' && b.owner === '박혜경') b.owner = '박혜경/이상원';
+    });
+    state.biz.push({ id: DB.uid(), no: '', name: 'e노동사회', owner: '윤효원', content: '', note: '' });
+    state.biz.forEach((b, i) => b.no = String(i + 1));
+    persist('biz');
+  }
+  // 연구: 구분(진행/응모) 없는 행에 자동 부여
+  const APPLY = ['업종별 노사관계 사례 조사 및 평가', '단체교섭의 사회적 기능과 방식에 관한 연구',
+    '선별장 등 실태조사 및 근로여건 개선방안 마련 연구', '화학섬유노조 산별활동가 교육프로그램 설계',
+    '공공기관 노동이사제 운영 실태와 이사회 작동 변화 분석', '노사상생협력교육사업 사업성과 분석 및 개선방안 연구'];
+  if (state.research.some(r => !r.cat)) {
+    state.research.forEach(r => { if (!r.cat) r.cat = APPLY.includes(r.title) ? '응모' : '진행'; });
     persist('research');
   }
 }
@@ -96,6 +120,7 @@ async function boot() {
     }
   }
   seedDefaults();
+  migrate();
   // 칸 수정 → 자동 저장 (blur 시점)
   document.getElementById('view').addEventListener('change', e => {
     const el = e.target.closest('[data-store]');
@@ -103,6 +128,7 @@ async function boot() {
     const { store, id, field } = el.dataset;
     const r = state[store].find(x => x.id === id);
     if (r) { r[field] = el.value; persist(store); }
+    if (field === 'cat') route(); // 구분 변경 시 진행/응모 블록 사이로 즉시 이동
   });
   route();
 }
@@ -206,19 +232,25 @@ function vBiz() {
 }
 
 // ---------- 화면: 연구 ----------
+const scel = (store, id, field, val, opts) =>
+  `<td><select class="cl" ${bind(store, id, field)}>${opts.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select></td>`;
+
 function vResearch() {
-  const years = [...new Set(state.research.map(r => r.year))].sort();
-  const head = `<tr><th>연번</th><th style="min-width:220px">연구과제명</th><th>책임자</th><th style="min-width:140px">연구위원</th><th>연구원</th><th>계약서</th><th style="min-width:120px">발주처</th><th>시작</th><th>종료</th><th>금액</th><th>입금액</th><th>결재</th><th style="min-width:160px">진행상황</th><th></th></tr>`;
-  const blocks = years.map(y => {
-    const rows = state.research.filter(r => r.year === y).map(r =>
-      `<tr>${icel('research', r.id, 'no', r.no, '36px')}${cell('research', r.id, 'title', r.title, 'min-height:40px')}${icel('research', r.id, 'lead', r.lead, '80px')}${cell('research', r.id, 'fellows', r.fellows, 'min-height:40px')}${icel('research', r.id, 'asst', r.asst, '70px')}${icel('research', r.id, 'contract', r.contract, '46px')}${icel('research', r.id, 'client', r.client)}${icel('research', r.id, 'start', r.start, '92px')}${icel('research', r.id, 'end', r.end, '92px')}${icel('research', r.id, 'amount', r.amount, '70px')}${icel('research', r.id, 'paid', r.paid, '70px')}${icel('research', r.id, 'approve', r.approve, '70px')}${cell('research', r.id, 'status', r.status, 'min-height:40px')}${delBtn('research', r.id)}</tr>`).join('');
-    return `<h4>${esc(y)}</h4><div class="scroll"><table class="sheet rsch">${head}${rows}</table></div>`;
+  const head = `<tr><th>구분</th><th>년도</th><th>연번</th><th style="min-width:220px">연구과제명</th><th>책임자</th><th style="min-width:140px">연구위원</th><th>연구원</th><th>계약서</th><th style="min-width:120px">발주처</th><th>시작</th><th>종료</th><th>금액</th><th>입금액</th><th>결재</th><th style="min-width:160px">진행상황</th><th></th></tr>`;
+  const blocks = [['진행', '진행중 용역'], ['응모', '응모예정 과제']].map(([cat, label]) => {
+    const list = state.research.filter(r => (r.cat || '진행') === cat)
+      .sort((a, b) => (a.year + '').localeCompare(b.year + '') || amt(a.no) - amt(b.no));
+    const rows = list.map(r =>
+      `<tr>${scel('research', r.id, 'cat', r.cat || '진행', ['진행', '응모'])}${icel('research', r.id, 'year', r.year, '56px')}${icel('research', r.id, 'no', r.no, '36px')}${cell('research', r.id, 'title', r.title, 'min-height:40px')}${icel('research', r.id, 'lead', r.lead, '80px')}${cell('research', r.id, 'fellows', r.fellows, 'min-height:40px')}${icel('research', r.id, 'asst', r.asst, '70px')}${icel('research', r.id, 'contract', r.contract, '46px')}${icel('research', r.id, 'client', r.client)}${icel('research', r.id, 'start', r.start, '92px')}${icel('research', r.id, 'end', r.end, '92px')}${icel('research', r.id, 'amount', r.amount, '70px')}${icel('research', r.id, 'paid', r.paid, '70px')}${icel('research', r.id, 'approve', r.approve, '70px')}${cell('research', r.id, 'status', r.status, 'min-height:40px')}${delBtn('research', r.id)}</tr>`).join('');
+    const tot = list.reduce((s, r) => s + amt(r.amount), 0);
+    const totPaid = list.reduce((s, r) => s + amt(r.paid), 0);
+    return `<h4>${label}</h4>
+      <div class="scroll"><table class="sheet rsch">${head}${rows}</table></div>
+      <p><span class="badge">${label} 금액 합계 ${fmtAmt(tot)}</span> <span class="badge">입금액 합계 ${fmtAmt(totPaid)}</span> (단위: 만원)</p>
+      <div class="actions"><button onclick="app.addResearch('${cat}')">+ ${label} 추가</button></div>`;
   }).join('');
-  const tot = state.research.reduce((s, r) => s + amt(r.amount), 0);
-  const totPaid = state.research.reduce((s, r) => s + amt(r.paid), 0);
-  return `<h3>연구 (용역 목록)</h3>${blocks}
-    <p><span class="badge">금액 합계 ${fmtAmt(tot)}</span> <span class="badge">입금액 합계 ${fmtAmt(totPaid)}</span> (단위: 만원)</p>
-    <div class="actions"><button onclick="app.addResearch()">+ 과제 추가</button></div>`;
+  return `<h3>연구</h3>${blocks}
+    <p class="hint">구분 칸을 바꾸면 행이 진행중 용역 ↔ 응모예정 과제 사이로 이동합니다.</p>`;
 }
 
 // ---------- 화면: 구성원 ----------
@@ -251,10 +283,8 @@ window.app = {
   addAgenda() { DB.add('agenda', { week: ymd(curMon), text: '', result: '' }); route(); },
   addMember(kind) { DB.add('members', { week: ymd(curMon), kind, mno: '', name: '', org: '', grade: '', pay: '', date1: '', date2: '' }); route(); },
   addBiz() { DB.add('biz', { no: String(state.biz.length + 1), name: '', owner: '', content: '', note: '' }); route(); },
-  addResearch() {
-    const year = prompt('연도(예: 2026, 기타)', String(new Date().getFullYear()));
-    if (year === null) return;
-    DB.add('research', { year: year || '기타', no: '', title: '', lead: '', fellows: '', asst: '', contract: '', client: '', start: '', end: '', amount: '', paid: '', approve: '', status: '' });
+  addResearch(cat) {
+    DB.add('research', { cat, year: String(new Date().getFullYear()), no: '', title: '', lead: '', fellows: '', asst: '', contract: '', client: '', start: '', end: '', amount: '', paid: '', approve: '', status: '' });
     route();
   },
   addPerson() {

@@ -52,12 +52,12 @@ textarea.cell {
     border: 0; padding: 6px 8px; background: transparent;
     font: inherit; font-size: 0.85rem; line-height: 1.5; resize: vertical;
 }
-input.cl {
+input.cl, select.cl {
     display: block; width: 100%; box-sizing: border-box;
     border: 0; padding: 6px 8px; background: transparent;
     font: inherit; font-size: 0.85rem;
 }
-textarea.cell:focus, input.cl:focus { outline: 2px solid #1abc9c; outline-offset: -2px; background: #f4fffc; }
+textarea.cell:focus, input.cl:focus, select.cl:focus { outline: 2px solid #1abc9c; outline-offset: -2px; background: #f4fffc; }
 
 /* 행정/회원 텍스트 박스 */
 fieldset { border: 1px solid #ddd; border-radius: 8px; margin: 0 0 16px; padding: 14px; background: #fff; }
