@@ -398,14 +398,14 @@ function vActivity() {
 
   // 매트릭스 열 구성 (코드 머리글 + 범례)
   const cols = [];
-  state.biz.forEach((b, i) => cols.push({ g: '사업', code: 'B' + (i + 1), title: b.name, mark: n => roleInBiz(n, b) }));
-  prog.forEach((r, i) => cols.push({ g: '진행 연구', code: 'P' + (i + 1), title: r.title, mark: n => roleInResearch(n, r) }));
-  apply.forEach((r, i) => cols.push({ g: '응모 연구', code: 'A' + (i + 1), title: r.title, mark: n => roleInResearch(n, r) }));
+  state.biz.forEach(b => cols.push({ g: '사업', head: b.name, title: b.name, mark: n => roleInBiz(n, b) }));
+  prog.forEach((r, i) => cols.push({ g: '진행 연구', head: 'P' + (i + 1), code: 'P' + (i + 1), title: r.title, mark: n => roleInResearch(n, r) }));
+  apply.forEach((r, i) => cols.push({ g: '응모 연구', head: 'A' + (i + 1), code: 'A' + (i + 1), title: r.title, mark: n => roleInResearch(n, r) }));
 
   const groups = [];
   cols.forEach(c => { const last = groups[groups.length - 1]; if (last && last.g === c.g) last.n++; else groups.push({ g: c.g, n: 1 }); });
   const grpRow = `<tr><th class="nm"></th>${groups.map(g => `<th colspan="${g.n}">${g.g}</th>`).join('')}</tr>`;
-  const codeRow = `<tr><th class="nm">구성원</th>${cols.map(c => `<th title="${esc(c.title)}">${c.code}</th>`).join('')}</tr>`;
+  const codeRow = `<tr><th class="nm">구성원</th>${cols.map(c => `<th title="${esc(c.title)}">${esc(c.head)}</th>`).join('')}</tr>`;
   const bodyRows = state.people.map(p => {
     const cells = cols.map(c => {
       const m = c.mark(p.name);
@@ -414,7 +414,7 @@ function vActivity() {
     }).join('');
     return `<tr><th class="nm">${esc(p.name)}</th>${cells}</tr>`;
   }).join('');
-  const legend = cols.map(c => `<li><b>${c.code}</b> ${esc(c.title)}</li>`).join('');
+  const legend = cols.filter(c => c.code).map(c => `<li><b>${c.code}</b> ${esc(c.title)}</li>`).join('');
 
   // 구성원별 요약 (이름으로 나열)
   const sumRows = state.people.map(p => {
@@ -436,8 +436,9 @@ function vActivity() {
     <p class="hint">사업의 <b>담당자</b>, 연구의 <b>책임자·연구위원·연구원</b> 칸에서 구성원 이름을 자동으로 찾아 연결합니다.
       연결을 바꾸려면 <b>사업·연구 탭</b>에서 해당 칸을 수정하세요(여기는 자동 반영).</p>
     <h4>관계 매트릭스 <span class="hint">(● 담당·책임 / ○ 참여)</span></h4>
+    <p class="hint">각 구성원이 어떤 사업·연구에 참여하는지 한눈에 보는 표입니다. 사업은 이름으로, 연구는 제목이 길어 <b>P·A 코드</b>로 적고 아래에 전체 제목을 풀어 두었습니다. (P=진행 연구, A=응모 연구)</p>
     <div class="scroll"><table class="sheet mtx">${grpRow}${codeRow}${bodyRows}</table></div>
-    <details class="legend"><summary>활동 코드(B·P·A) 전체 이름 보기</summary><ul>${legend}</ul></details>
+    <div class="legend"><b>연구 코드 — 전체 제목</b><ul>${legend}</ul></div>
     <h4>구성원별 요약</h4>
     <div class="scroll"><table class="sheet">
       <tr><th class="nm">구성원</th><th>고정 담당</th><th>담당 사업</th><th>책임 연구</th><th>참여 연구</th><th style="width:54px">활동 수</th></tr>${sumRows}
