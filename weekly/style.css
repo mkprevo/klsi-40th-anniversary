@@ -80,6 +80,19 @@ button.delbtn { padding: 2px 8px; color: #c0392b; border-color: #ddd; }
 input { font-family: inherit; font-size: 0.88rem; padding: 6px 8px; border: 1px solid #ccc; border-radius: 5px; }
 
 .badge { display: inline-block; padding: 3px 10px; border-radius: 10px; background: #ecf0f1; font-size: 0.85rem; font-weight: 700; }
+.muted { color: #999; }
+
+/* 관계 매트릭스 */
+table.mtx td { text-align: center; min-width: 30px; font-size: 0.95rem; }
+table.mtx th { text-align: center; }
+table.mtx th.nm { white-space: nowrap; padding: 6px 10px; position: sticky; left: 0; z-index: 1; }
+table.mtx td.r-담당, table.mtx td.r-책임 { background: #1abc9c; color: #fff; }
+table.mtx td.r-위원, table.mtx td.r-연구원 { background: #d4efe9; color: #16a085; }
+details.legend { margin: 8px 0 4px; font-size: 0.85rem; }
+details.legend summary { cursor: pointer; color: #2c3e50; }
+details.legend ul { columns: 2; margin: 8px 0; padding-left: 18px; }
+details.legend li { margin-bottom: 3px; }
+@media (max-width: 600px) { details.legend ul { columns: 1; } }
 
 button.print-btn { background: #1abc9c; color: #fff; border-color: #16a085; }
 button.print-btn:hover { background: #16a085; }

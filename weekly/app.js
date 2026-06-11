@@ -378,8 +378,73 @@ function pResearch() {
   return `<h2>연구</h2>${block('진행', '진행중 용역')}${block('응모', '응모예정 과제')}`;
 }
 
+// ---------- 화면: 구성원 활동 현황 (사업·연구 자동 연결) ----------
+// 담당자/책임자/연구위원/연구원 칸의 이름 표기를 토큰으로 분해 (이명규/윤효원, 이주환(행정상), "김유선, 이문호" 등)
+const tokens = str => (str || '').split(/[\/,，、·∙\s()（）]+/).map(s => s.trim()).filter(Boolean);
+const roleInBiz = (name, b) => tokens(b.owner).includes(name) ? '담당' : '';
+function roleInResearch(name, r) {
+  if (tokens(r.lead).includes(name)) return '책임';
+  if (tokens(r.fellows).includes(name)) return '위원';
+  if (tokens(r.asst).includes(name)) return '연구원';
+  return '';
+}
+
+function vActivity() {
+  const prog = state.research.filter(r => (r.cat || '진행') === '진행');
+  const apply = state.research.filter(r => (r.cat || '진행') === '응모');
+
+  // 매트릭스 열 구성 (코드 머리글 + 범례)
+  const cols = [];
+  state.biz.forEach((b, i) => cols.push({ g: '사업', code: 'B' + (i + 1), title: b.name, mark: n => roleInBiz(n, b) }));
+  prog.forEach((r, i) => cols.push({ g: '진행 연구', code: 'P' + (i + 1), title: r.title, mark: n => roleInResearch(n, r) }));
+  apply.forEach((r, i) => cols.push({ g: '응모 연구', code: 'A' + (i + 1), title: r.title, mark: n => roleInResearch(n, r) }));
+
+  const groups = [];
+  cols.forEach(c => { const last = groups[groups.length - 1]; if (last && last.g === c.g) last.n++; else groups.push({ g: c.g, n: 1 }); });
+  const grpRow = `<tr><th class="nm"></th>${groups.map(g => `<th colspan="${g.n}">${g.g}</th>`).join('')}</tr>`;
+  const codeRow = `<tr><th class="nm">구성원</th>${cols.map(c => `<th title="${esc(c.title)}">${c.code}</th>`).join('')}</tr>`;
+  const bodyRows = state.people.map(p => {
+    const cells = cols.map(c => {
+      const m = c.mark(p.name);
+      const mk = m === '담당' || m === '책임' ? '●' : m ? '○' : '';
+      return `<td class="${m ? 'r-' + m : ''}" title="${m ? esc(c.title) + ' — ' + m : ''}">${mk}</td>`;
+    }).join('');
+    return `<tr><th class="nm">${esc(p.name)}</th>${cells}</tr>`;
+  }).join('');
+  const legend = cols.map(c => `<li><b>${c.code}</b> ${esc(c.title)}</li>`).join('');
+
+  // 구성원별 요약 (이름으로 나열)
+  const sumRows = state.people.map(p => {
+    const bz = state.biz.filter(b => roleInBiz(p.name, b)).map(b => b.name);
+    const lead = state.research.filter(r => tokens(r.lead).includes(p.name)).map(r => r.title);
+    const part = state.research.filter(r => tokens(r.fellows).includes(p.name) || tokens(r.asst).includes(p.name)).map(r => r.title);
+    const cnt = bz.length + lead.length + part.length;
+    const td = arr => arr.length ? arr.map(esc).join('<br>') : '<span class="muted">-</span>';
+    return `<tr><th class="nm">${esc(p.name)}</th><td>${td(bz)}</td><td>${td(lead)}</td><td>${td(part)}</td><td class="c"><span class="badge">${cnt}</span></td></tr>`;
+  }).join('');
+
+  // 담당 구성원이 인식되지 않은 활동
+  const orphanBiz = state.biz.filter(b => !state.people.some(p => roleInBiz(p.name, b))).map(b => '[사업] ' + b.name);
+  const orphanRes = state.research.filter(r => !state.people.some(p => roleInResearch(p.name, r))).map(r => '[연구] ' + r.title);
+  const orphans = [...orphanBiz, ...orphanRes];
+
+  return `<h3>구성원 활동 현황</h3>
+    <p class="hint">사업의 <b>담당자</b>, 연구의 <b>책임자·연구위원·연구원</b> 칸에서 구성원 이름을 자동으로 찾아 연결합니다.
+      연결을 바꾸려면 <b>사업·연구 탭</b>에서 해당 칸을 수정하세요(여기는 자동 반영).</p>
+    <h4>관계 매트릭스 <span class="hint">(● 담당·책임 / ○ 참여)</span></h4>
+    <div class="scroll"><table class="sheet mtx">${grpRow}${codeRow}${bodyRows}</table></div>
+    <details class="legend"><summary>활동 코드(B·P·A) 전체 이름 보기</summary><ul>${legend}</ul></details>
+    <h4>구성원별 요약</h4>
+    <div class="scroll"><table class="sheet">
+      <tr><th class="nm">구성원</th><th>담당 사업</th><th>책임 연구</th><th>참여 연구</th><th style="width:54px">활동 수</th></tr>${sumRows}
+    </table></div>
+    ${orphans.length ? `<h4>담당 구성원이 인식되지 않은 활동</h4>
+      <p class="hint">외부 책임자이거나 이름 표기가 다를 수 있습니다. 필요하면 사업/연구 탭에서 담당자·책임자 칸을 확인하세요.</p>
+      <ul class="muted">${orphans.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}`;
+}
+
 // ---------- 라우터 ----------
-const VIEWS = { grid: vGrid, meeting: vMeeting, biz: vBiz, research: vResearch, people: vPeople };
+const VIEWS = { grid: vGrid, meeting: vMeeting, biz: vBiz, research: vResearch, activity: vActivity, people: vPeople };
 function route() {
   const tab = location.hash.slice(1) || 'grid';
   document.querySelectorAll('.tabs a[data-tab]').forEach(a =>
