@@ -3,21 +3,37 @@
    1:1 관계(재정/회원변동)는 meetings 레코드에 필드로 병합해 단순화. */
 
 // ---------- 설정 ----------
-// api 를 비워두면 이 브라우저(localStorage)에만 저장됩니다. (현재 기본값)
-// cafe24에 PHP+MySQL을 올린 뒤 'api.php' 로 바꾸면 팀 전체가 공유합니다.
-const CONFIG = { api: '', token: '' };
+// api: 'api.php' = 팀 공유 모드(서버 MySQL에 저장, config.php 접속정보 필요).
+//      ''        = 이 브라우저(localStorage)에만 저장.
+// 서버 연결에 실패하면 자동으로 localStorage 모드로 내려가므로 사이트가 멈추지 않습니다.
+const CONFIG = { api: 'api.php', token: '' };
 
 // ---------- 데이터층 (메모리 캐시 + localStorage/서버 동기화) ----------
 const STORES = ['people', 'projects', 'members', 'meetings', 'entries', 'updates', 'schedule'];
 let state = Object.fromEntries(STORES.map(k => [k, []]));
+let serverOk = false; // boot()에서 서버 연결 성공 시 true
+
+// 화면 상단에 현재 저장 모드 표시
+function setSyncStatus(ok, msg) {
+  serverOk = ok;
+  let el = document.getElementById('syncStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'syncStatus';
+    el.style.cssText = 'text-align:center;font-size:.8rem;padding:4px;color:#fff;';
+    document.querySelector('header').appendChild(el);
+  }
+  el.style.background = ok ? '#16a085' : '#c0392b';
+  el.textContent = msg;
+}
 
 function persist(k) {
-  if (CONFIG.api) {
+  localStorage.setItem('klsi_' + k, JSON.stringify(state[k])); // 항상 로컬에도 백업
+  if (CONFIG.api && serverOk) {
     fetch(`${CONFIG.api}?store=${k}${CONFIG.token ? '&token=' + CONFIG.token : ''}`,
       { method: 'POST', body: JSON.stringify(state[k]) })
-      .catch(() => alert('서버 저장 실패 — 접속정보(config.php)를 확인하세요.'));
-  } else {
-    localStorage.setItem('klsi_' + k, JSON.stringify(state[k]));
+      .then(r => { if (!r.ok) throw 0; })
+      .catch(() => setSyncStatus(false, '서버 저장 실패 — 이 브라우저에만 저장 중 (config.php 확인)'));
   }
 }
 
@@ -30,13 +46,28 @@ const DB = {
 };
 
 async function boot() {
+  // 1) 우선 로컬 백업본을 읽어 화면이 항상 뜨게 한다.
+  STORES.forEach(k => state[k] = JSON.parse(localStorage.getItem('klsi_' + k) || '[]'));
+
+  // 2) 팀 공유 모드면 서버 데이터로 교체. 실패하면 로컬 모드로 폴백.
   if (CONFIG.api) {
     try {
-      const d = await (await fetch(`${CONFIG.api}?all=1${CONFIG.token ? '&token=' + CONFIG.token : ''}`)).json();
-      STORES.forEach(k => state[k] = Array.isArray(d[k]) ? d[k] : []);
-    } catch { alert('서버 연결 실패 — config.php / DB 설정을 확인하세요.'); }
-  } else {
-    STORES.forEach(k => state[k] = JSON.parse(localStorage.getItem('klsi_' + k) || '[]'));
+      const r = await fetch(`${CONFIG.api}?all=1${CONFIG.token ? '&token=' + CONFIG.token : ''}`);
+      if (!r.ok) throw 0;
+      const d = await r.json();
+      setSyncStatus(true, '팀 공유 모드 — 모든 구성원이 같은 데이터를 봅니다');
+
+      const serverEmpty = STORES.every(k => !Array.isArray(d[k]) || d[k].length === 0);
+      const localHas = STORES.some(k => state[k].length > 0);
+      if (serverEmpty && localHas &&
+          confirm('서버가 비어 있고 이 브라우저에 저장된 데이터가 있습니다.\n이 데이터를 서버로 올려 팀과 공유할까요?')) {
+        STORES.forEach(k => persist(k)); // 로컬 → 서버 1회 이관
+      } else {
+        STORES.forEach(k => state[k] = Array.isArray(d[k]) ? d[k] : []);
+      }
+    } catch {
+      setSyncStatus(false, '서버 연결 안 됨 — 이 브라우저에만 저장 중 (check.php로 진단)');
+    }
   }
   route();
 }

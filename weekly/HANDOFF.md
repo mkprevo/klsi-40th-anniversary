@@ -22,8 +22,10 @@
 
 - [x] 주간회의 시스템을 독립 하위 폴더 `weekly/` 로 구성 (FileZilla 드롭인 가능).
 - [x] cafe24 `/www/40th/weekly/` 에 6개 파일 업로드 완료, 화면 정상 표시.
-- [x] 현재는 **localStorage 모드** = 데이터가 각자 브라우저에만 저장됨 (팀 공유 아직 미적용).
-- [ ] **팀 공유(PHP+MySQL) 적용 작업 진행 중 — 다음 세션에서 완료할 것.**
+- [x] `app.js` 팀 공유 모드 켬(`CONFIG.api='api.php'`) + 서버 실패 시 localStorage 자동 폴백,
+      상단 상태 배너(팀 공유/로컬), 서버 빈 경우 로컬 데이터 1회 이관 confirm 구현.
+- [ ] **사용자 작업 남음**: cafe24 MySQL DB 신청 → `config.php` 접속정보 입력 →
+      `app.js`+`config.php` 재업로드 → `check.php` 로 성공 확인 → `check.php` 삭제.
 
 ## 4. `weekly/` 폴더 파일 구성
 
