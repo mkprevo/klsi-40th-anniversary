@@ -70,7 +70,12 @@ textarea.box {
 }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
-.actions { display: flex; gap: 8px; align-items: center; margin: 10px 0; }
+.actions { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+button.primary { background: #1abc9c; color: #fff; border-color: #16a085; }
+button.primary:hover { background: #16a085; }
+.qrow { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
+.qrow label { font-size: 0.85rem; color: #555; }
+.qrow select, .qrow input { min-width: 150px; margin-top: 4px; }
 button {
     font-family: inherit; font-size: 0.88rem; cursor: pointer;
     padding: 7px 14px; border: 1px solid #bbb; border-radius: 6px; background: #fff;
@@ -115,6 +120,7 @@ button.print-btn:hover { background: #16a085; }
 
     /* iOS 입력 시 자동 확대 방지 (16px 미만이면 확대됨) */
     input, select, textarea, input.cl, select.cl, textarea.cell, textarea.box { font-size: 16px; }
+    .qrow label, .qrow select, .qrow input { width: 100%; }
 
     /* 카드형 표: 좁은 화면에서 가로 표 대신 항목별 카드로 전환 (주간일정표 + 사업) */
     table.sheet.grid, table.sheet.grid tbody, table.sheet.grid tr, table.sheet.grid td,

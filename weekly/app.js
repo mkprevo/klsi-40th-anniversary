@@ -389,6 +389,28 @@ function pResearch() {
   return `<h2>연구</h2>${block('진행', '진행중 용역')}${block('응모', '응모예정 과제')}`;
 }
 
+// ---------- 화면: 조회 · 내보내기 ----------
+function vSearch() {
+  const opts = '<option value="">전체</option>' + state.people.map(p => `<option>${esc(p.name)}</option>`).join('');
+  return `<h3>조회 · 내보내기</h3>
+    <p class="hint">누적된 주간일정을 구성원·기간·키워드로 검색하고 CSV로 내보내 연간 자료로 활용하세요.
+      (사업 회의·활동도 일정에 적혀 있으면 함께 검색됩니다)</p>
+    <fieldset><legend>검색 조건</legend>
+      <div class="qrow">
+        <label>구성원<br><select id="qPerson">${opts}</select></label>
+        <label>키워드<br><input id="qKeyword" placeholder="예: 노동이사, 토론회"></label>
+        <label>시작 주(월요일)<br><input id="qFrom" type="date"></label>
+        <label>끝 주(월요일)<br><input id="qTo" type="date"></label>
+      </div>
+      <div class="actions">
+        <button class="primary" onclick="app.runSearch()">검색</button>
+        <button onclick="app.exportSearchCSV()">결과 CSV 내보내기</button>
+        <button onclick="app.exportBizCSV()">사업 현황 CSV</button>
+      </div>
+    </fieldset>
+    <div id="searchResults"></div>`;
+}
+
 // ---------- 화면: 구성원 활동 현황 (사업·연구 자동 연결) ----------
 // 담당자/책임자/연구위원/연구원 칸의 이름 표기를 토큰으로 분해 (이명규/윤효원, 이주환(행정상), "김유선, 이문호" 등)
 const tokens = str => (str || '').split(/[\/,，、·∙\s()（）]+/).map(s => s.trim()).filter(Boolean);
@@ -457,7 +479,7 @@ function vActivity() {
 }
 
 // ---------- 라우터 ----------
-const VIEWS = { grid: vGrid, meeting: vMeeting, biz: vBiz, research: vResearch, activity: vActivity, people: vPeople };
+const VIEWS = { grid: vGrid, meeting: vMeeting, biz: vBiz, research: vResearch, activity: vActivity, search: vSearch, people: vPeople };
 function route() {
   const tab = location.hash.slice(1) || 'grid';
   document.querySelectorAll('.tabs a[data-tab]').forEach(a =>
@@ -483,6 +505,55 @@ window.app = {
     DB.add('people', { name, role: '' }); route();
   },
   del(store, id) { if (confirm('이 행을 삭제할까요?')) { DB.remove(store, id); route(); } },
+  _searchRows(person, kw, from, to) {
+    const DOW = ['월', '화', '수', '목', '금'];
+    const out = [];
+    state.sched.forEach(s => {
+      const pname = (state.people.find(p => p.id === s.personId) || {}).name || '';
+      if (person && pname !== person) return;
+      if (from && s.week < from) return;
+      if (to && s.week > to) return;
+      const [Y, M, D] = s.week.split('-').map(Number);
+      const mon = new Date(Y, M - 1, D);
+      for (let i = 0; i < 5; i++) {
+        const txt = (s['d' + i] || '').trim();
+        if (!txt || (kw && !txt.includes(kw))) continue;
+        out.push({ week: s.week, date: ymd(addD(mon, i)), day: DOW[i], person: pname, content: txt });
+      }
+      const note = (s.note || '').trim();
+      if (note && (!kw || note.includes(kw))) out.push({ week: s.week, date: s.week, day: '비고', person: pname, content: note });
+    });
+    out.sort((a, b) => a.date.localeCompare(b.date) || a.person.localeCompare(b.person));
+    return out;
+  },
+  runSearch() {
+    const g = id => document.getElementById(id).value;
+    const rows = this._searchRows(g('qPerson'), g('qKeyword').trim(), g('qFrom'), g('qTo'));
+    this._lastRows = rows;
+    const body = rows.map(r => `<tr><td>${esc(r.date)}</td><td>${esc(r.day)}</td><td>${esc(r.person)}</td><td>${esc(r.content).replace(/\n/g, '<br>')}</td></tr>`).join('');
+    document.getElementById('searchResults').innerHTML = rows.length
+      ? `<p class="hint"><b>${rows.length}건</b> 검색됨</p><div class="scroll"><table class="sheet"><tr><th style="width:96px">날짜</th><th style="width:44px">요일</th><th style="width:90px">구성원</th><th>내용</th></tr>${body}</table></div>`
+      : '<p class="hint">결과가 없습니다.</p>';
+  },
+  _downloadCSV(name, header, data) {
+    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const BOM = String.fromCharCode(0xFEFF); // 엑셀 한글 깨짐 방지
+    const csv = BOM + [header, ...data].map(row => row.map(q).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `${name}_${ymd(new Date())}.csv`;
+    a.click();
+  },
+  exportSearchCSV() {
+    const rows = this._lastRows || [];
+    if (!rows.length) { alert('먼저 [검색]을 실행하세요.'); return; }
+    this._downloadCSV('klsi_일정조회', ['주차(월)', '날짜', '요일', '구성원', '내용'],
+      rows.map(r => [r.week, r.date, r.day, r.person, r.content]));
+  },
+  exportBizCSV() {
+    this._downloadCSV('klsi_사업현황', ['순번', '사업명', '담당자', '주요 추진 내용', '비고'],
+      state.biz.map(b => [b.no, b.name, b.owner, b.content, b.note]));
+  },
   print() {
     let el = document.getElementById('printArea');
     if (!el) { el = document.createElement('div'); el.id = 'printArea'; document.body.appendChild(el); }
