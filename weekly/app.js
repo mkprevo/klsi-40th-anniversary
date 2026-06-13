@@ -6,9 +6,11 @@
 const CONFIG = { api: 'api.php', token: '' };
 
 // ---------- 데이터층 ----------
-const STORES = ['people', 'sched', 'agenda', 'adminrec', 'members', 'biz', 'bizlog', 'research'];
+// 'meta'는 마이그레이션 버전 등 내부 상태 저장용(화면에는 안 쓰임)
+const STORES = ['people', 'sched', 'agenda', 'adminrec', 'members', 'biz', 'bizlog', 'research', 'meta'];
 let state = Object.fromEntries(STORES.map(k => [k, []]));
 let serverOk = false;
+const tok = () => CONFIG.token ? '&token=' + CONFIG.token : '';
 
 function setSyncStatus(ok, msg) {
   serverOk = ok;
@@ -23,20 +25,36 @@ function setSyncStatus(ok, msg) {
   el.textContent = msg;
 }
 
-function persist(k) {
-  localStorage.setItem('klsi_' + k, JSON.stringify(state[k])); // 항상 로컬 백업
-  if (CONFIG.api && serverOk) {
-    fetch(`${CONFIG.api}?store=${k}${CONFIG.token ? '&token=' + CONFIG.token : ''}`,
-      { method: 'POST', body: JSON.stringify(state[k]) })
-      .then(r => { if (!r.ok) throw 0; })
-      .catch(() => setSyncStatus(false, '서버 저장 실패 — 이 브라우저에만 저장 중'));
-  }
+const FAIL = '서버 저장 실패 — 이 브라우저에만 저장 중';
+function lput(k) { localStorage.setItem('klsi_' + k, JSON.stringify(state[k])); } // 로컬 백업
+
+// 레코드 1개 업서트 (동시 편집 시 다른 레코드를 덮어쓰지 않음)
+function saveRec(store, rec) {
+  lput(store);
+  if (CONFIG.api && serverOk)
+    fetch(`${CONFIG.api}?op=put&store=${store}${tok()}`, { method: 'POST', body: JSON.stringify(rec) })
+      .then(r => { if (!r.ok) throw 0; }).catch(() => setSyncStatus(false, FAIL));
 }
+// 레코드 1개 삭제
+function delRec(store, id) {
+  lput(store);
+  if (CONFIG.api && serverOk)
+    fetch(`${CONFIG.api}?op=del&store=${store}&id=${encodeURIComponent(id)}${tok()}`, { method: 'POST' })
+      .then(r => { if (!r.ok) throw 0; }).catch(() => setSyncStatus(false, FAIL));
+}
+// 스토어 전체 업서트 (시드·마이그레이션·가져오기용)
+function saveBulk(store) {
+  lput(store);
+  if (CONFIG.api && serverOk)
+    fetch(`${CONFIG.api}?op=bulk&store=${store}${tok()}`, { method: 'POST', body: JSON.stringify(state[store]) })
+      .then(r => { if (!r.ok) throw 0; }).catch(() => setSyncStatus(false, FAIL));
+}
+function persist(k) { saveBulk(k); } // 호환용 별칭
 
 const DB = {
   uid: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-  add(k, rec) { rec.id = this.uid(); state[k].push(rec); persist(k); return rec; },
-  remove(k, id) { state[k] = state[k].filter(r => r.id !== id); persist(k); }
+  add(k, rec) { rec.id = this.uid(); state[k].push(rec); saveRec(k, rec); return rec; },
+  remove(k, id) { state[k] = state[k].filter(r => r.id !== id); delRec(k, id); }
 };
 
 // ---------- 주차 ----------
@@ -99,37 +117,10 @@ function migratePeople() {
   if (changed) persist('people');
 }
 
-// ---------- 이번 주(6/8~6/12) 일정 1회 입력 (구글 주간일정표 옮김) ----------
-function seedThisWeek() {
-  const WK = '2026-06-08'; // 월=6/8 화=6/9 수=6/10 목=6/11 금=6/12
-  const data = {
-    '김유선': ['(10:30) 주간회의', '(18:45) 노사관계이론(종강)', '(09:30) 6·10항쟁 기념식\n(14:00) 최저임금토론회(사회)', '(14:30) 영국학생', '(14:00) 노동이사 청강', '(10:00) 걷기대회(동대입구역)\n(10:00) 경노회'],
-    '박혜경': ['10:30 주간회의', '18:00 9기 전문가과정', '11:00 화섬', '', '', ''],
-    '이명규': ['10:30 주간회의', '14:00 봉제업 프로젝트 발표회\n16:00 단체교섭 플젝(연구원) 회의', '화섬노조 플젝 방문 계약', '', '14:00 노동이사제', ''],
-    '윤효원': ['SOAS 대학원생 지원\n(이대·연대 강의: 한국의 외교정책)', 'SOAS 대학원생 방한 지원\n(한국의 대북정책, 전쟁박물관)', 'SOAS 대학원생 방한 지원\n(DMZ 방문)', 'SOAS 대학원생 방한 지원\n(이대 강의: 김유선 / 강미나 강의: 향린교회 1층 교육장)', 'SOAS 대학원생 방한 지원\n(이대 강의, 국경없는의사회)', ''],
-    '이주환': ['(10:00) 연구실회의\n(10:30) 주간회의\n(14:00) 서비스연맹 콜센터 초기업 교섭 간담회', '', '', '(10:00) 한국노총 조직화 연구 회의', '', '(10:00) 경노회\n(12:30) 논문 모임'],
-    '박용철': ['연구소 회의\n(14:00) 콜센터 교섭 간담회', '(15:00) 조선산업 TF 회의(금속노조)', '', '(10:30~) 속초노사민정 간담회', '삼척노사민정 자문', '(16:00) 한양대 MBA 강의'],
-    '송관철': ['(오전) 연구소 회의', '', '(14:00) 도급제 최저임금 토론회\n(토론자, 장소: 국회도서관)', '', '', ''],
-    '양은숙': ['10:30 주간회의\n연구계약 서류', '', '휴가', '', '', ''],
-    '이상원': ['10:30 주간회의', '18:30 전문가과정', '출근', '', '오전반차', '']
-  };
-  const VER = 2; // 시드 버전: 시간 포함본으로 1회 덮어쓰기 (이후 사용자 편집은 보존)
-  let changed = false;
-  for (const name in data) {
-    const p = state.people.find(x => x.name === name);
-    if (!p) continue;
-    const r = state.sched.find(s => s.week === WK && s.personId === p.id);
-    if (r && r.seedVer === VER) continue; // 이미 최신 시드 적용됨 → 건드리지 않음
-    const [d0, d1, d2, d3, d4, note] = data[name];
-    if (r) Object.assign(r, { d0, d1, d2, d3, d4, note, seedVer: VER });
-    else state.sched.push({ id: DB.uid(), week: WK, personId: p.id, d0, d1, d2, d3, d4, note, seedVer: VER });
-    changed = true;
-  }
-  if (changed) persist('sched');
-}
 function migrate() {
   // 사업: 노동이사제 개칭, 감사·기타 삭제, e노동사회 추가, 담당자 보정
   if (state.biz.length && !state.biz.some(b => b.name === 'e노동사회')) {
+    const removed = state.biz.filter(b => b.name === '감사' || b.name === '기타');
     state.biz = state.biz.filter(b => b.name !== '감사' && b.name !== '기타');
     state.biz.forEach(b => {
       if (b.name === '노동이사 과정') b.name = '노동이사제';
@@ -138,6 +129,7 @@ function migrate() {
     });
     state.biz.push({ id: DB.uid(), no: '', name: 'e노동사회', owner: '윤효원', content: '', note: '' });
     state.biz.forEach((b, i) => b.no = String(i + 1));
+    removed.forEach(b => delRec('biz', b.id));
     persist('biz');
   }
   // 연구: 구분(진행/응모) 없는 행에 자동 부여
@@ -180,21 +172,38 @@ async function boot() {
       setSyncStatus(false, '서버 연결 안 됨 — 이 브라우저에만 저장 중');
     }
   }
+  const wasEmpty = ['people', 'biz', 'research'].every(k => state[k].length === 0);
   seedDefaults();
-  migrate();
-  migratePeople();
-  seedThisWeek();
-  migrateBizLog();
-  // 칸 수정 → 자동 저장 (blur 시점)
+  runMigrations(wasEmpty);
+  // 칸 수정 → 자동 저장 (해당 레코드만)
   document.getElementById('view').addEventListener('change', e => {
     const el = e.target.closest('[data-store]');
     if (!el) return;
     const { store, id, field } = el.dataset;
     const r = state[store].find(x => x.id === id);
-    if (r) { r[field] = el.value; persist(store); }
+    if (r) { r[field] = el.value; saveRec(store, r); }
     if (field === 'cat') route(); // 구분 변경 시 진행/응모 블록 사이로 즉시 이동
   });
   route();
+}
+
+// 마이그레이션은 버전 플래그로 1회만 실행 (부팅마다 재실행/삭제 부활 방지)
+const SCHEMA = 1;
+function metaRec() {
+  let m = state.meta.find(r => r.id === 'meta');
+  if (!m) { m = { id: 'meta', schema: 0 }; state.meta.push(m); }
+  return m;
+}
+function runMigrations(wasEmpty) {
+  const m = metaRec();
+  if (m.schema >= SCHEMA) return;       // 이미 보정됨
+  if (!wasEmpty) {                       // 기존 데이터만 1회 보정 (신규 설치는 시드가 최신)
+    migrate();
+    migratePeople();
+    migrateBizLog();
+  }
+  m.schema = SCHEMA;
+  saveRec('meta', m);
 }
 
 // ---------- 공통 헬퍼 ----------
@@ -218,19 +227,20 @@ function weekBar() {
 }
 
 // 주차별 레코드 확보(없으면 메모리에 생성 — 첫 수정 때 저장됨)
+// 지연 레코드는 결정적 id 사용 → 두 브라우저가 같은 칸을 같은 id로 인식(중복/충돌 방지)
 function schedOf(pid, wk) {
   let r = state.sched.find(s => s.week === wk && s.personId === pid);
-  if (!r) { r = { id: DB.uid(), week: wk, personId: pid, d0: '', d1: '', d2: '', d3: '', d4: '', note: '' }; state.sched.push(r); }
+  if (!r) { r = { id: 'sched_' + wk + '_' + pid, week: wk, personId: pid, d0: '', d1: '', d2: '', d3: '', d4: '', note: '' }; state.sched.push(r); }
   return r;
 }
 function adminOf(wk) {
   let r = state.adminrec.find(s => s.week === wk);
-  if (!r) { r = { id: DB.uid(), week: wk, ops: '', hr: '', income: '', donation: '' }; state.adminrec.push(r); }
+  if (!r) { r = { id: 'admin_' + wk, week: wk, ops: '', hr: '', income: '', donation: '' }; state.adminrec.push(r); }
   return r;
 }
 function bizlogOf(bizId, wk) {
   let r = state.bizlog.find(l => l.bizId === bizId && l.week === wk);
-  if (!r) { r = { id: DB.uid(), week: wk, bizId, content: '', note: '' }; state.bizlog.push(r); }
+  if (!r) { r = { id: 'bizlog_' + bizId + '_' + wk, week: wk, bizId, content: '', note: '' }; state.bizlog.push(r); }
   return r;
 }
 
@@ -525,9 +535,12 @@ window.app = {
   addBiz() { DB.add('biz', { no: String(state.biz.length + 1), name: '', owner: '', content: '', note: '', _logged: true }); route(); },
   delBiz(id) {
     if (!confirm('이 사업을 삭제할까요? (모든 주차 기록도 함께 삭제됩니다)')) return;
+    const logs = state.bizlog.filter(l => l.bizId === id);
     state.biz = state.biz.filter(b => b.id !== id);
     state.bizlog = state.bizlog.filter(l => l.bizId !== id);
-    persist('biz'); persist('bizlog'); route();
+    delRec('biz', id);
+    logs.forEach(l => delRec('bizlog', l.id));
+    route();
   },
   addResearch(cat) {
     DB.add('research', { cat, year: String(new Date().getFullYear()), no: '', title: '', lead: '', fellows: '', asst: '', contract: '', client: '', start: '', end: '', amount: '', paid: '', approve: '', status: '' });
