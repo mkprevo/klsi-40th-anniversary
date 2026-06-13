@@ -6,7 +6,7 @@
 const CONFIG = { api: 'api.php', token: '' };
 
 // ---------- 데이터층 ----------
-const STORES = ['people', 'sched', 'agenda', 'adminrec', 'members', 'biz', 'research'];
+const STORES = ['people', 'sched', 'agenda', 'adminrec', 'members', 'biz', 'bizlog', 'research'];
 let state = Object.fromEntries(STORES.map(k => [k, []]));
 let serverOk = false;
 
@@ -150,6 +150,22 @@ function migrate() {
   }
 }
 
+// 기존 사업의 단일 추진내용/비고를 '이번 주' 주차 기록으로 1회 이전 (사업 주차별 기록 전환)
+function migrateBizLog() {
+  const wk = ymd(curMon);
+  let changed = false;
+  state.biz.forEach(b => {
+    if (b._logged) return;
+    if (b.content || b.note) {
+      if (!state.bizlog.some(l => l.bizId === b.id && l.week === wk))
+        state.bizlog.push({ id: DB.uid(), week: wk, bizId: b.id, content: b.content || '', note: b.note || '' });
+    }
+    b._logged = true; // 재이전 방지
+    changed = true;
+  });
+  if (changed) { persist('bizlog'); persist('biz'); }
+}
+
 // ---------- 부팅 ----------
 async function boot() {
   STORES.forEach(k => state[k] = JSON.parse(localStorage.getItem('klsi_' + k) || '[]'));
@@ -168,6 +184,7 @@ async function boot() {
   migrate();
   migratePeople();
   seedThisWeek();
+  migrateBizLog();
   // 칸 수정 → 자동 저장 (blur 시점)
   document.getElementById('view').addEventListener('change', e => {
     const el = e.target.closest('[data-store]');
@@ -209,6 +226,11 @@ function schedOf(pid, wk) {
 function adminOf(wk) {
   let r = state.adminrec.find(s => s.week === wk);
   if (!r) { r = { id: DB.uid(), week: wk, ops: '', hr: '', income: '', donation: '' }; state.adminrec.push(r); }
+  return r;
+}
+function bizlogOf(bizId, wk) {
+  let r = state.bizlog.find(l => l.bizId === bizId && l.week === wk);
+  if (!r) { r = { id: DB.uid(), week: wk, bizId, content: '', note: '' }; state.bizlog.push(r); }
   return r;
 }
 
@@ -269,21 +291,24 @@ function vMeeting() {
 
 // ---------- 화면: 사업 ----------
 function vBiz() {
-  const rows = state.biz.map(r =>
-    `<tr>` +
-      `<td data-label="순번"><input class="cl" style="width:40px" ${bind('biz', r.id, 'no')} value="${esc(r.no)}"></td>` +
-      `<td data-label="사업명"><input class="cl" ${bind('biz', r.id, 'name')} value="${esc(r.name)}"></td>` +
-      `<td data-label="담당자"><input class="cl" ${bind('biz', r.id, 'owner')} value="${esc(r.owner)}"></td>` +
-      `<td data-label="주요 추진 내용"><textarea class="cell" ${bind('biz', r.id, 'content')}>${esc(r.content)}</textarea></td>` +
-      `<td data-label="비고"><textarea class="cell" ${bind('biz', r.id, 'note')}>${esc(r.note)}</textarea></td>` +
-      `<td class="pad" data-label="삭제"><button class="delbtn" onclick="app.del('biz','${r.id}')">×</button></td>` +
-    `</tr>`).join('');
-  return `<h3>사업</h3>
+  const wk = ymd(curMon);
+  const rows = state.biz.map(b => {
+    const log = bizlogOf(b.id, wk);
+    return `<tr>` +
+      `<td data-label="순번"><input class="cl" style="width:40px" ${bind('biz', b.id, 'no')} value="${esc(b.no)}"></td>` +
+      `<td data-label="사업명"><input class="cl" ${bind('biz', b.id, 'name')} value="${esc(b.name)}"></td>` +
+      `<td data-label="담당자"><input class="cl" ${bind('biz', b.id, 'owner')} value="${esc(b.owner)}"></td>` +
+      `<td data-label="주요 추진 내용"><textarea class="cell" ${bind('bizlog', log.id, 'content')}>${esc(log.content)}</textarea></td>` +
+      `<td data-label="비고"><textarea class="cell" ${bind('bizlog', log.id, 'note')}>${esc(log.note)}</textarea></td>` +
+      `<td class="pad" data-label="삭제"><button class="delbtn" onclick="app.delBiz('${b.id}')">×</button></td>` +
+    `</tr>`;
+  }).join('');
+  return `<h3>사업 <span class="hint">(주차별 기록)</span></h3>${weekBar()}
     <div class="scroll"><table class="sheet card">
-      <tr><th style="width:46px">순번</th><th style="width:14%">사업명</th><th style="width:10%">담당자</th><th>주요 추진 내용</th><th style="width:22%">비고</th><th style="width:36px"></th></tr>
+      <tr><th style="width:46px">순번</th><th style="width:14%">사업명</th><th style="width:10%">담당자</th><th>주요 추진 내용 (이번 주)</th><th style="width:22%">비고 (이번 주)</th><th style="width:36px"></th></tr>
       ${rows}</table></div>
     <div class="actions"><button onclick="app.addBiz()">+ 사업 추가</button></div>
-    <p class="hint">이 표는 주차와 무관하게 유지됩니다. 추진 내용을 그때그때 갱신하세요.</p>`;
+    <p class="hint">사업명·담당자는 공통(모든 주 동일)이고, <b>추진 내용·비고는 주차별로 따로 기록</b>됩니다. 주차를 옮기면 그 주의 기록이 나옵니다. 누적 기록은 ‘조회’ 탭의 <b>사업 주차기록 CSV</b>로 내보낼 수 있습니다.</p>`;
 }
 
 // ---------- 화면: 연구 ----------
@@ -368,9 +393,12 @@ function pMeeting(mon) {
 }
 
 function pBiz() {
-  const rows = state.biz.map(r =>
-    `<tr><td class="c">${ptext(r.no)}</td><td>${ptext(r.name)}</td><td>${ptext(r.owner)}</td><td>${ptext(r.content)}</td><td>${ptext(r.note)}</td></tr>`).join('');
-  return `<h2>사업</h2>
+  const wk = ymd(curMon);
+  const rows = state.biz.map(b => {
+    const log = state.bizlog.find(l => l.bizId === b.id && l.week === wk) || {};
+    return `<tr><td class="c">${ptext(b.no)}</td><td>${ptext(b.name)}</td><td>${ptext(b.owner)}</td><td>${ptext(log.content)}</td><td>${ptext(log.note)}</td></tr>`;
+  }).join('');
+  return `<h2>사업 (${md(curMon)} ~ ${md(addD(curMon, 4))})</h2>
     <table class="psheet"><tr><th style="width:34px">순번</th><th>사업명</th><th>담당자</th><th>주요 추진 내용</th><th>비고</th></tr>${rows}</table>`;
 }
 
@@ -405,7 +433,7 @@ function vSearch() {
       <div class="actions">
         <button class="primary" onclick="app.runSearch()">검색</button>
         <button onclick="app.exportSearchCSV()">결과 CSV 내보내기</button>
-        <button onclick="app.exportBizCSV()">사업 현황 CSV</button>
+        <button onclick="app.exportBizCSV()">사업 주차기록 CSV</button>
       </div>
     </fieldset>
     <div id="searchResults"></div>`;
@@ -494,7 +522,13 @@ window.app = {
   thisWeek() { curMon = mondayOf(new Date()); route(); },
   addAgenda() { DB.add('agenda', { week: ymd(curMon), text: '', result: '' }); route(); },
   addMember(kind) { DB.add('members', { week: ymd(curMon), kind, mno: '', name: '', org: '', grade: '', pay: '', date1: '', date2: '' }); route(); },
-  addBiz() { DB.add('biz', { no: String(state.biz.length + 1), name: '', owner: '', content: '', note: '' }); route(); },
+  addBiz() { DB.add('biz', { no: String(state.biz.length + 1), name: '', owner: '', content: '', note: '', _logged: true }); route(); },
+  delBiz(id) {
+    if (!confirm('이 사업을 삭제할까요? (모든 주차 기록도 함께 삭제됩니다)')) return;
+    state.biz = state.biz.filter(b => b.id !== id);
+    state.bizlog = state.bizlog.filter(l => l.bizId !== id);
+    persist('biz'); persist('bizlog'); route();
+  },
   addResearch(cat) {
     DB.add('research', { cat, year: String(new Date().getFullYear()), no: '', title: '', lead: '', fellows: '', asst: '', contract: '', client: '', start: '', end: '', amount: '', paid: '', approve: '', status: '' });
     route();
@@ -551,8 +585,15 @@ window.app = {
       rows.map(r => [r.week, r.date, r.day, r.person, r.content]));
   },
   exportBizCSV() {
-    this._downloadCSV('klsi_사업현황', ['순번', '사업명', '담당자', '주요 추진 내용', '비고'],
-      state.biz.map(b => [b.no, b.name, b.owner, b.content, b.note]));
+    const rows = [];
+    state.bizlog.forEach(l => {
+      const b = state.biz.find(x => x.id === l.bizId);
+      if (!b || !(l.content || l.note)) return;
+      rows.push([l.week, b.no, b.name, b.owner, l.content, l.note]);
+    });
+    rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])) || (Number(a[1]) || 0) - (Number(b[1]) || 0));
+    if (!rows.length) { alert('기록된 사업 추진 내용이 없습니다.'); return; }
+    this._downloadCSV('klsi_사업주차기록', ['주차(월)', '순번', '사업명', '담당자', '추진내용', '비고'], rows);
   },
   print() {
     let el = document.getElementById('printArea');
