@@ -91,9 +91,9 @@ input { font-family: inherit; font-size: 0.88rem; padding: 6px 8px; border: 1px 
 table.mtx td { text-align: center; min-width: 30px; }
 table.mtx th { text-align: center; }
 table.mtx th.nm { white-space: nowrap; padding: 6px 10px; position: sticky; left: 0; z-index: 1; }
-/* 칸 배경은 비우고 마커(점)에만 색 — 담당·책임=진한 점, 참여=옅은 빈 점 */
-table.mtx td.r-담당, table.mtx td.r-책임 { color: #16a085; font-size: 1.05rem; line-height: 1; }
-table.mtx td.r-위원, table.mtx td.r-연구원 { color: #c0c6cb; font-size: 1.05rem; line-height: 1; }
+/* 칸 배경은 비우고 마커 '모양'으로 구분 — 담당·책임=★, 참여=○ (색은 동일) */
+table.mtx td.r-담당, table.mtx td.r-책임 { color: #2c3e50; font-size: 1.05rem; line-height: 1; }
+table.mtx td.r-위원, table.mtx td.r-연구원 { color: #2c3e50; font-size: 0.95rem; line-height: 1; }
 table.mtx tr:hover td { background: #f4faf8; }
 .legend { margin: 8px 0 4px; font-size: 0.85rem; color: #2c3e50; }
 .legend ul { columns: 2; margin: 8px 0; padding-left: 18px; }

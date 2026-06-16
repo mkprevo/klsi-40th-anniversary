@@ -477,7 +477,7 @@ function vActivity() {
   const bodyRows = state.people.map(p => {
     const cells = cols.map(c => {
       const m = c.mark(p.name);
-      const mk = m === '담당' || m === '책임' ? '●' : m ? '○' : '';
+      const mk = m === '담당' || m === '책임' ? '★' : m ? '○' : '';
       return `<td class="${m ? 'r-' + m : ''}" title="${m ? esc(c.title) + ' — ' + m : ''}">${mk}</td>`;
     }).join('');
     return `<tr><th class="nm">${esc(p.name)}</th>${cells}</tr>`;
@@ -503,7 +503,7 @@ function vActivity() {
   return `<h3>구성원 활동 현황</h3>
     <p class="hint">사업의 <b>담당자</b>, 연구의 <b>책임자·연구위원·연구원</b> 칸에서 구성원 이름을 자동으로 찾아 연결합니다.
       연결을 바꾸려면 <b>사업·연구 탭</b>에서 해당 칸을 수정하세요(여기는 자동 반영).</p>
-    <h4>관계 매트릭스 <span class="hint">(● 담당·책임 / ○ 참여)</span></h4>
+    <h4>관계 매트릭스 <span class="hint">(★ 담당·책임 / ○ 참여)</span></h4>
     <p class="hint">각 구성원이 어떤 사업·연구에 참여하는지 한눈에 보는 표입니다. 사업은 이름으로, 연구는 제목이 길어 <b>P·A 코드</b>로 적고 아래에 전체 제목을 풀어 두었습니다. (P=진행 연구, A=응모 연구)</p>
     <div class="scroll"><table class="sheet mtx">${grpRow}${codeRow}${bodyRows}</table></div>
     <div class="legend"><b>연구 코드 — 전체 제목</b><ul>${legend}</ul></div>
