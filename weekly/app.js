@@ -361,6 +361,27 @@ const ptext = s => esc(s).replace(/\n/g, '<br>');
 const findSched = (pid, wk) => state.sched.find(s => s.week === wk && s.personId === pid) || {};
 const findAdmin = wk => state.adminrec.find(s => s.week === wk) || {};
 
+// 주간일정표 인쇄 — 구글 문서 양식: 한 표에 사람별 두 줄(지난주/이번주), 요일머리에 두 날짜
+function pGridDual() {
+  const A = addD(curMon, -7), B = curMon;
+  const wkA = ymd(A), wkB = ymd(B);
+  const dA = [0, 1, 2, 3, 4].map(i => addD(A, i));
+  const dB = [0, 1, 2, 3, 4].map(i => addD(B, i));
+  const head = `<tr><th class="nm">이름</th>${[0, 1, 2, 3, 4].map(i =>
+    `<th>${'월화수목금'[i]}<br>${md(dA[i])}<br><span class="w2">${md(dB[i])}</span></th>`).join('')}<th>비고</th></tr>`;
+  const rows = state.people.map(p => {
+    const a = findSched(p.id, wkA), b = findSched(p.id, wkB);
+    const top = `<tr><th class="nm" rowspan="2">${esc(p.name)}</th>` +
+      [0, 1, 2, 3, 4].map(i => `<td>${ptext(a['d' + i])}</td>`).join('') + `<td>${ptext(a.note)}</td></tr>`;
+    const bot = `<tr class="w2">` +
+      [0, 1, 2, 3, 4].map(i => `<td>${ptext(b['d' + i])}</td>`).join('') + `<td>${ptext(b.note)}</td></tr>`;
+    return top + bot;
+  }).join('');
+  return `<h2>주간일정표 — 지난주 ${md(A)}~${md(addD(A, 4))} · 이번주 ${md(B)}~${md(addD(B, 4))}
+    <span class="leg">(윗줄·흰색=지난주 / 아랫줄·음영=이번주)</span></h2>
+    <table class="psheet grid2wk">${head}${rows}</table>`;
+}
+
 function pGrid(mon, label) {
   const wk = ymd(mon);
   const days = [0, 1, 2, 3, 4].map(i => addD(mon, i));
@@ -614,7 +635,7 @@ window.app = {
     const last = addD(curMon, -7);
     el.innerHTML =
       `<div class="phead">한국노동사회연구소 주간회의 자료 — ${md(curMon)} ~ ${md(addD(curMon, 4))}</div>` +
-      pGrid(last, '지난주') + pGrid(curMon, '이번주') +
+      pGridDual() +
       `<div class="pbreak"></div>` + pResearch() +
       `<div class="pbreak"></div>` + pBiz() +
       `<div class="pbreak"></div>` + pMeeting(curMon);

@@ -148,20 +148,28 @@ button.print-btn:hover { background: #16a085; }
     header, .tabs, .container { display: none !important; }
     #printArea { display: block !important; }
 
-    #printArea .phead { font-size: 13px; font-weight: 700; text-align: center; margin-bottom: 8px; }
-    #printArea h2 { font-size: 14px; margin: 10px 0 4px; page-break-after: avoid; border-bottom: 2px solid #333; padding-bottom: 2px; }
-    #printArea h3 { font-size: 12px; margin: 8px 0 3px; page-break-after: avoid; }
-    #printArea h4 { font-size: 11px; margin: 6px 0 2px; page-break-after: avoid; }
-    #printArea .muted { color: #777; font-size: 10px; margin: 2px 0; }
-    #printArea .sum { font-size: 10px; font-weight: 700; margin: 3px 0 0; }
+    #printArea .phead { font-size: 16px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+    #printArea h2 { font-size: 16px; margin: 10px 0 5px; page-break-after: avoid; border-bottom: 2px solid #333; padding-bottom: 3px; }
+    #printArea h2 .leg { font-size: 11px; font-weight: 400; color: #777; }
+    #printArea h3 { font-size: 13px; margin: 8px 0 3px; page-break-after: avoid; }
+    #printArea h4 { font-size: 12px; margin: 6px 0 2px; page-break-after: avoid; }
+    #printArea .muted { color: #777; font-size: 11px; margin: 2px 0; }
+    #printArea .sum { font-size: 11px; font-weight: 700; margin: 3px 0 0; }
     .pbreak { page-break-before: always; }
 
-    table.psheet { width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.35; margin-bottom: 4px; }
-    table.psheet th, table.psheet td { border: 1px solid #555; padding: 2px 4px; vertical-align: top; text-align: left; word-break: break-word; }
+    table.psheet { width: 100%; border-collapse: collapse; font-size: 11px; line-height: 1.4; margin-bottom: 6px; }
+    table.psheet th, table.psheet td { border: 1px solid #555; padding: 3px 5px; vertical-align: top; text-align: left; word-break: break-word; }
     table.psheet th { background: #eee; font-weight: 700; }
     table.psheet td.c, table.psheet th.c { text-align: center; }
     table.psheet td.r { text-align: right; }
     table.psheet tr { page-break-inside: avoid; }
     table.psheet.grid th.nm { width: 8%; white-space: nowrap; }
     table.psheet.kv th { width: 20%; }
+
+    /* 주간일정표(지난주/이번주 결합) — 구글 문서 양식 */
+    table.psheet.grid2wk th { text-align: center; }
+    table.psheet.grid2wk th.nm { width: 7%; white-space: nowrap; vertical-align: middle; }
+    table.psheet.grid2wk td { height: 26px; }
+    table.psheet .w2 { color: #9a6a00; font-weight: 700; }   /* 이번주 날짜 라벨 */
+    table.psheet tr.w2 td { background: #fdf6e3; }            /* 이번주 행 음영 */
 }
