@@ -456,26 +456,67 @@ function pResearch() {
   return `<h2>연구</h2>${block('진행', '진행중 용역')}${block('완료', '완료 용역')}`;
 }
 
-// ---------- 화면: 조회 · 내보내기 ----------
+// ---------- 화면: 조회 (구성원별 내 기록) ----------
+let qPerson = ''; // 선택된 구성원 이름
+
+// 선택 구성원의 일정(일별)·연구·사업(주차기록) 모으기
+function myRows(name) {
+  const DOW = ['월', '화', '수', '목', '금'];
+  const p = state.people.find(x => x.name === name);
+  const sched = [];
+  if (p) state.sched.filter(s => s.personId === p.id).forEach(s => {
+    const [Y, M, D] = s.week.split('-').map(Number);
+    const mon = new Date(Y, M - 1, D);
+    for (let i = 0; i < 5; i++) {
+      const t = (s['d' + i] || '').trim();
+      if (t) sched.push({ date: ymd(addD(mon, i)), day: DOW[i], text: t });
+    }
+    const n = (s.note || '').trim();
+    if (n) sched.push({ date: s.week, day: '비고', text: n });
+  });
+  sched.sort((a, b) => a.date.localeCompare(b.date));
+  const research = state.research.filter(r => roleInResearch(name, r))
+    .map(r => ({ ...r, role: roleInResearch(name, r) }))
+    .sort((a, b) => (a.cat || '').localeCompare(b.cat || '') || (a.year + '').localeCompare(b.year + '') || amt(a.no) - amt(b.no));
+  const bizlogs = [];
+  state.biz.filter(b => roleInBiz(name, b)).forEach(b => {
+    const logs = state.bizlog.filter(l => l.bizId === b.id && ((l.content || '').trim() || (l.note || '').trim()))
+      .sort((x, y) => x.week.localeCompare(y.week));
+    if (logs.length) logs.forEach(l => bizlogs.push({ biz: b.name, week: l.week, content: l.content || '', note: l.note || '' }));
+    else bizlogs.push({ biz: b.name, week: '', content: '', note: '' });
+  });
+  return { sched, research, bizlogs };
+}
+
 function vSearch() {
-  const opts = '<option value="">전체</option>' + state.people.map(p => `<option>${esc(p.name)}</option>`).join('');
-  return `<h3>조회 · 내보내기</h3>
-    <p class="hint">누적된 주간일정을 구성원·기간·키워드로 검색하고 CSV로 내보내 연간 자료로 활용하세요.
-      (사업 회의·활동도 일정에 적혀 있으면 함께 검색됩니다)</p>
-    <fieldset><legend>검색 조건</legend>
-      <div class="qrow">
-        <label>구성원<br><select id="qPerson">${opts}</select></label>
-        <label>키워드<br><input id="qKeyword" placeholder="예: 노동이사, 토론회"></label>
-        <label>시작 주(월요일)<br><input id="qFrom" type="date"></label>
-        <label>끝 주(월요일)<br><input id="qTo" type="date"></label>
-      </div>
-      <div class="actions">
-        <button class="primary" onclick="app.runSearch()">검색</button>
-        <button onclick="app.exportSearchCSV()">결과 CSV 내보내기</button>
-        <button onclick="app.exportBizCSV()">사업 주차기록 CSV</button>
-      </div>
-    </fieldset>
-    <div id="searchResults"></div>`;
+  const opts = '<option value="">— 구성원 선택 —</option>' +
+    state.people.map(p => `<option ${p.name === qPerson ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  let body = '<p class="hint">위에서 구성원을 선택하면 그 사람의 일정 · 연구 · 사업 기록이 표로 나옵니다.</p>';
+  if (qPerson) {
+    const { sched, research, bizlogs } = myRows(qPerson);
+    const br = s => esc(s).replace(/\n/g, '<br>');
+    const none = n => `<tr><td colspan="${n}" class="pad">기록이 없습니다.</td></tr>`;
+    const schedRows = sched.length ? sched.map(r =>
+      `<tr><td class="pad" style="width:100px">${esc(r.date)}</td><td class="pad" style="width:44px">${esc(r.day)}</td><td style="padding:6px 8px">${br(r.text)}</td></tr>`).join('') : none(3);
+    const resRows = research.length ? research.map(r =>
+      `<tr><td class="pad">${esc(r.cat || '진행')}</td><td class="pad">${esc(r.year)}</td><td style="padding:6px 8px">${br(r.title)}</td><td class="pad">${esc(r.role)}</td><td class="pad">${esc(r.lead)}</td><td style="padding:6px 8px">${br(r.client)}</td><td class="pad">${esc(r.start)}</td><td class="pad">${esc(r.end)}</td><td class="pad" style="text-align:right">${esc(r.amount)}</td><td style="padding:6px 8px">${br(r.status)}</td></tr>`).join('') : none(10);
+    const bizRows = bizlogs.length ? bizlogs.map(r =>
+      `<tr><td class="pad">${esc(r.biz)}</td><td class="pad" style="width:100px">${esc(r.week)}</td><td style="padding:6px 8px">${br(r.content)}</td><td style="padding:6px 8px">${br(r.note)}</td></tr>`).join('') : none(4);
+    body = `
+    <h4>1. 주간일정 기록 (일별) <button onclick="app.exportMySched()">CSV 저장</button></h4>
+    <div class="scroll"><table class="sheet">
+      <tr><th>날짜</th><th>요일</th><th>내용</th></tr>${schedRows}</table></div>
+    <h4>2. 연구 (참여 용역) <button onclick="app.exportMyResearch()">CSV 저장</button></h4>
+    <div class="scroll"><table class="sheet">
+      <tr><th>구분</th><th>년도</th><th>연구과제명</th><th>나의 역할</th><th>책임자</th><th>발주처</th><th>시작</th><th>종료</th><th>금액</th><th>진행상황</th></tr>${resRows}</table></div>
+    <h4>3. 사업 (담당 사업 주차기록) <button onclick="app.exportMyBiz()">CSV 저장</button></h4>
+    <div class="scroll"><table class="sheet">
+      <tr><th>사업명</th><th>주차(월)</th><th>추진 내용</th><th>비고</th></tr>${bizRows}</table></div>`;
+  }
+  return `<h3>조회 — 구성원별 기록</h3>
+    <div class="qrow"><label>구성원<br>
+      <select onchange="app.pickPerson(this.value)" style="min-width:180px">${opts}</select></label></div>
+    ${body}`;
 }
 
 // ---------- 화면: 구성원 활동 현황 (사업·연구 자동 연결) ----------
@@ -581,36 +622,7 @@ window.app = {
     DB.add('people', { name, role: '' }); route();
   },
   del(store, id) { if (confirm('이 행을 삭제할까요?')) { DB.remove(store, id); route(); } },
-  _searchRows(person, kw, from, to) {
-    const DOW = ['월', '화', '수', '목', '금'];
-    const out = [];
-    state.sched.forEach(s => {
-      const pname = (state.people.find(p => p.id === s.personId) || {}).name || '';
-      if (person && pname !== person) return;
-      if (from && s.week < from) return;
-      if (to && s.week > to) return;
-      const [Y, M, D] = s.week.split('-').map(Number);
-      const mon = new Date(Y, M - 1, D);
-      for (let i = 0; i < 5; i++) {
-        const txt = (s['d' + i] || '').trim();
-        if (!txt || (kw && !txt.includes(kw))) continue;
-        out.push({ week: s.week, date: ymd(addD(mon, i)), day: DOW[i], person: pname, content: txt });
-      }
-      const note = (s.note || '').trim();
-      if (note && (!kw || note.includes(kw))) out.push({ week: s.week, date: s.week, day: '비고', person: pname, content: note });
-    });
-    out.sort((a, b) => a.date.localeCompare(b.date) || a.person.localeCompare(b.person));
-    return out;
-  },
-  runSearch() {
-    const g = id => document.getElementById(id).value;
-    const rows = this._searchRows(g('qPerson'), g('qKeyword').trim(), g('qFrom'), g('qTo'));
-    this._lastRows = rows;
-    const body = rows.map(r => `<tr><td>${esc(r.date)}</td><td>${esc(r.day)}</td><td>${esc(r.person)}</td><td>${esc(r.content).replace(/\n/g, '<br>')}</td></tr>`).join('');
-    document.getElementById('searchResults').innerHTML = rows.length
-      ? `<p class="hint"><b>${rows.length}건</b> 검색됨</p><div class="scroll"><table class="sheet"><tr><th style="width:96px">날짜</th><th style="width:44px">요일</th><th style="width:90px">구성원</th><th>내용</th></tr>${body}</table></div>`
-      : '<p class="hint">결과가 없습니다.</p>';
-  },
+  pickPerson(name) { qPerson = name; route(); },
   _downloadCSV(name, header, data) {
     const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
     const BOM = String.fromCharCode(0xFEFF); // 엑셀 한글 깨짐 방지
@@ -620,22 +632,26 @@ window.app = {
     a.download = `${name}_${ymd(new Date())}.csv`;
     a.click();
   },
-  exportSearchCSV() {
-    const rows = this._lastRows || [];
-    if (!rows.length) { alert('먼저 [검색]을 실행하세요.'); return; }
-    this._downloadCSV('klsi_일정조회', ['주차(월)', '날짜', '요일', '구성원', '내용'],
-      rows.map(r => [r.week, r.date, r.day, r.person, r.content]));
+  exportMySched() {
+    if (!qPerson) return;
+    const { sched } = myRows(qPerson);
+    if (!sched.length) { alert('일정 기록이 없습니다.'); return; }
+    this._downloadCSV(`${qPerson}_일정`, ['날짜', '요일', '내용'], sched.map(r => [r.date, r.day, r.text]));
   },
-  exportBizCSV() {
-    const rows = [];
-    state.bizlog.forEach(l => {
-      const b = state.biz.find(x => x.id === l.bizId);
-      if (!b || !(l.content || l.note)) return;
-      rows.push([l.week, b.no, b.name, b.owner, l.content, l.note]);
-    });
-    rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])) || (Number(a[1]) || 0) - (Number(b[1]) || 0));
-    if (!rows.length) { alert('기록된 사업 추진 내용이 없습니다.'); return; }
-    this._downloadCSV('klsi_사업주차기록', ['주차(월)', '순번', '사업명', '담당자', '추진내용', '비고'], rows);
+  exportMyResearch() {
+    if (!qPerson) return;
+    const { research } = myRows(qPerson);
+    if (!research.length) { alert('참여 연구가 없습니다.'); return; }
+    this._downloadCSV(`${qPerson}_연구`,
+      ['구분', '년도', '연번', '연구과제명', '나의 역할', '책임자', '연구위원', '연구원', '발주처', '시작', '종료', '금액', '입금액', '진행상황'],
+      research.map(r => [r.cat || '진행', r.year, r.no, r.title, r.role, r.lead, r.fellows, r.asst, r.client, r.start, r.end, r.amount, r.paid, r.status]));
+  },
+  exportMyBiz() {
+    if (!qPerson) return;
+    const { bizlogs } = myRows(qPerson);
+    if (!bizlogs.length) { alert('담당 사업이 없습니다.'); return; }
+    this._downloadCSV(`${qPerson}_사업`, ['사업명', '주차(월)', '추진내용', '비고'],
+      bizlogs.map(r => [r.biz, r.week, r.content, r.note]));
   },
   print() {
     let el = document.getElementById('printArea');
