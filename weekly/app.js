@@ -281,7 +281,7 @@ function vMeeting() {
   const mHead = c => `<tr><th>회원번호</th><th>회원명</th><th>소속</th><th>회원구분</th><th>결제방식</th><th>${c[0]}</th><th>${c[1]}</th><th></th></tr>`;
   const mRow = r => `<tr>${icel('members', r.id, 'mno', r.mno, '70px')}${icel('members', r.id, 'name', r.name)}${icel('members', r.id, 'org', r.org)}${icel('members', r.id, 'grade', r.grade)}${icel('members', r.id, 'pay', r.pay)}${icel('members', r.id, 'date1', r.date1)}${icel('members', r.id, 'date2', r.date2)}${delBtn('members', r.id)}</tr>`;
 
-  return `<h3>주간회의</h3>${weekBar()}
+  return `<h3>행정/회원</h3>${weekBar()}
     <fieldset><legend>논의안건</legend>
       <div class="scroll"><table class="sheet">
         <tr><th style="width:36px">번호</th><th>안건</th><th>논의·결정</th><th style="width:36px"></th></tr>${agendaRows}
