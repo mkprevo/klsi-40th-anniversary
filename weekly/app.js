@@ -86,12 +86,12 @@ function seedDefaults() {
       ['진행', '2026', '3', '다중위기와 노동운동 3', '이주환', '김유선, 이문호, 권순미, 윤정향', '', '', '에버트재단', '', '2026-09-30', '1,950', '', '', '6월15일 2차 회의'],
       ['진행', '2026', '4', '유통산업 초기업교섭 실태조사', '송관철', '', '', '', '한국노동연구원', '2026-04-01', '2026-08-30', '500', '250', '', '실태조사 진행(계속)'],
       ['진행', '2026', '5', '서울 패션·봉제산업 실태조사 연구용역', '이명규', '이종수', '윤세정', '', '서울노사민정협의회', '', '', '약 3,600', '', '', '킥오프 회의'],
-      ['응모', '2026', '1', '업종별 노사관계 사례 조사 및 평가', '이주환(행정상)', '채준호, 박성국, 박운, 조현민', '', '', '한국노동연구원', '', '', '2,750', '', '', '계약 진행 중, 오버헤드 과제'],
-      ['응모', '2026', '2', '단체교섭의 사회적 기능과 방식에 관한 연구', '이명규', '이주환', '', '', '한국노동연구원', '', '', '1,750', '', '', '계약 준비 중, 오버헤드 과제'],
-      ['응모', '2026', '3', '선별장 등 실태조사 및 근로여건 개선방안 마련 연구', '이주환', '장안석', '', '', '한국노동연구원', '', '', '1,800', '', '', '계약 예정, 오버헤드 과제'],
-      ['응모', '2026', '4', '화학섬유노조 산별활동가 교육프로그램 설계', '이명규', '', '', '', '화섬식품노조', '', '', '1,500', '', '', ''],
-      ['응모', '2026', '5', '공공기관 노동이사제 운영 실태와 이사회 작동 변화 분석', '이명규', '', '', '', '국가공공기관노동이사협의회', '', '', '1,036', '', '', '계약 체결 예정'],
-      ['응모', '2026', '6', '노사상생협력교육사업 사업성과 분석 및 개선방안 연구', '박용철', '송관철', '', '', '노사발전재단', '2026-06', '2026-11', '700', '', '오버헤드 20%', '협의 및 계약 예정']
+      ['진행', '2026', '1', '업종별 노사관계 사례 조사 및 평가', '이주환(행정상)', '채준호, 박성국, 박운, 조현민', '', '', '한국노동연구원', '', '', '2,750', '', '', '계약 진행 중, 오버헤드 과제'],
+      ['진행', '2026', '2', '단체교섭의 사회적 기능과 방식에 관한 연구', '이명규', '이주환', '', '', '한국노동연구원', '', '', '1,750', '', '', '계약 준비 중, 오버헤드 과제'],
+      ['진행', '2026', '3', '선별장 등 실태조사 및 근로여건 개선방안 마련 연구', '이주환', '장안석', '', '', '한국노동연구원', '', '', '1,800', '', '', '계약 예정, 오버헤드 과제'],
+      ['진행', '2026', '4', '화학섬유노조 산별활동가 교육프로그램 설계', '이명규', '', '', '', '화섬식품노조', '', '', '1,500', '', '', ''],
+      ['진행', '2026', '5', '공공기관 노동이사제 운영 실태와 이사회 작동 변화 분석', '이명규', '', '', '', '국가공공기관노동이사협의회', '', '', '1,036', '', '', '계약 체결 예정'],
+      ['진행', '2026', '6', '노사상생협력교육사업 사업성과 분석 및 개선방안 연구', '박용철', '송관철', '', '', '노사발전재단', '2026-06', '2026-11', '700', '', '오버헤드 20%', '협의 및 계약 예정']
     ];
     R.forEach(([cat, year, no, title, lead, fellows, asst, contract, client, start, end, amount, paid, approve, status]) =>
       state.research.push({ id: DB.uid(), cat, year, no, title, lead, fellows, asst, contract, client, start, end, amount, paid, approve, status }));
@@ -132,14 +132,18 @@ function migrate() {
     removed.forEach(b => delRec('biz', b.id));
     persist('biz');
   }
-  // 연구: 구분(진행/응모) 없는 행에 자동 부여
-  const APPLY = ['업종별 노사관계 사례 조사 및 평가', '단체교섭의 사회적 기능과 방식에 관한 연구',
-    '선별장 등 실태조사 및 근로여건 개선방안 마련 연구', '화학섬유노조 산별활동가 교육프로그램 설계',
-    '공공기관 노동이사제 운영 실태와 이사회 작동 변화 분석', '노사상생협력교육사업 사업성과 분석 및 개선방안 연구'];
+  // 연구: 구분(진행/완료) 없는 행에 진행으로 자동 부여
   if (state.research.some(r => !r.cat)) {
-    state.research.forEach(r => { if (!r.cat) r.cat = APPLY.includes(r.title) ? '응모' : '진행'; });
+    state.research.forEach(r => { if (!r.cat) r.cat = '진행'; });
     persist('research');
   }
+}
+
+// 연구 구분 응모→진행 정리 (진행/완료 체계로 전환, 1회)
+function migrateResearchCat() {
+  let changed = false;
+  state.research.forEach(r => { if (r.cat !== '진행' && r.cat !== '완료') { r.cat = '진행'; changed = true; } });
+  if (changed) persist('research');
 }
 
 // 기존 사업의 단일 추진내용/비고를 '이번 주' 주차 기록으로 1회 이전 (사업 주차별 기록 전환)
@@ -188,7 +192,7 @@ async function boot() {
 }
 
 // 마이그레이션은 버전 플래그로 1회만 실행 (부팅마다 재실행/삭제 부활 방지)
-const SCHEMA = 1;
+const SCHEMA = 2;
 function metaRec() {
   let m = state.meta.find(r => r.id === 'meta');
   if (!m) { m = { id: 'meta', schema: 0 }; state.meta.push(m); }
@@ -201,6 +205,7 @@ function runMigrations(wasEmpty) {
     migrate();
     migratePeople();
     migrateBizLog();
+    migrateResearchCat();
   }
   m.schema = SCHEMA;
   saveRec('meta', m);
@@ -323,24 +328,27 @@ function vBiz() {
 
 // ---------- 화면: 연구 ----------
 const scel = (store, id, field, val, opts) =>
-  `<td><select class="cl" ${bind(store, id, field)}>${opts.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select></td>`;
+  `<td><select class="cl catsel" data-v="${esc(val)}" ${bind(store, id, field)}>${opts.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select></td>`;
 
 function vResearch() {
-  const head = `<tr><th>구분</th><th>년도</th><th>연번</th><th style="min-width:220px">연구과제명</th><th>책임자</th><th style="min-width:140px">연구위원</th><th>연구원</th><th>계약서</th><th style="min-width:120px">발주처</th><th>시작</th><th>종료</th><th>금액</th><th>입금액</th><th>결재</th><th style="min-width:160px">진행상황</th><th></th></tr>`;
-  const blocks = [['진행', '진행중 용역'], ['응모', '응모예정 과제']].map(([cat, label]) => {
+  const colg = `<colgroup>${[6, 4, 3, 14, 6, 8, 6, 4, 8, 7, 7, 5, 5, 4, 10, 3].map(w => `<col style="width:${w}%">`).join('')}</colgroup>`;
+  const head = `<tr><th>구분</th><th>년도</th><th>연번</th><th>연구과제명</th><th>책임자</th><th>연구위원</th><th>연구원</th><th>계약서</th><th>발주처</th><th>시작</th><th>종료</th><th>금액</th><th>입금액</th><th>결재</th><th>진행상황</th><th></th></tr>`;
+  const H = 'min-height:32px';
+  const blocks = [['진행', '진행중 용역'], ['완료', '완료 용역']].map(([cat, label]) => {
     const list = state.research.filter(r => (r.cat || '진행') === cat)
       .sort((a, b) => (a.year + '').localeCompare(b.year + '') || amt(a.no) - amt(b.no));
     const rows = list.map(r =>
-      `<tr>${scel('research', r.id, 'cat', r.cat || '진행', ['진행', '응모'])}${icel('research', r.id, 'year', r.year, '56px')}${icel('research', r.id, 'no', r.no, '36px')}${cell('research', r.id, 'title', r.title, 'min-height:40px')}${icel('research', r.id, 'lead', r.lead, '80px')}${cell('research', r.id, 'fellows', r.fellows, 'min-height:40px')}${icel('research', r.id, 'asst', r.asst, '70px')}${icel('research', r.id, 'contract', r.contract, '46px')}${icel('research', r.id, 'client', r.client)}${icel('research', r.id, 'start', r.start, '92px')}${icel('research', r.id, 'end', r.end, '92px')}${icel('research', r.id, 'amount', r.amount, '70px')}${icel('research', r.id, 'paid', r.paid, '70px')}${icel('research', r.id, 'approve', r.approve, '70px')}${cell('research', r.id, 'status', r.status, 'min-height:40px')}${delBtn('research', r.id)}</tr>`).join('');
+      `<tr>${scel('research', r.id, 'cat', r.cat || '진행', ['진행', '완료'])}${icel('research', r.id, 'year', r.year)}${icel('research', r.id, 'no', r.no)}${cell('research', r.id, 'title', r.title, H)}${cell('research', r.id, 'lead', r.lead, H)}${cell('research', r.id, 'fellows', r.fellows, H)}${cell('research', r.id, 'asst', r.asst, H)}${icel('research', r.id, 'contract', r.contract)}${cell('research', r.id, 'client', r.client, H)}${icel('research', r.id, 'start', r.start)}${icel('research', r.id, 'end', r.end)}${icel('research', r.id, 'amount', r.amount)}${icel('research', r.id, 'paid', r.paid)}${icel('research', r.id, 'approve', r.approve)}${cell('research', r.id, 'status', r.status, H)}${delBtn('research', r.id)}</tr>`).join('');
     const tot = list.reduce((s, r) => s + amt(r.amount), 0);
     const totPaid = list.reduce((s, r) => s + amt(r.paid), 0);
     return `<h4>${label}</h4>
-      <div class="scroll"><table class="sheet rsch">${head}${rows}</table></div>
+      <div class="scroll"><table class="sheet rsch">${colg}${head}${rows}</table></div>
       <p><span class="badge">${label} 금액 합계 ${fmtAmt(tot)}</span> <span class="badge">입금액 합계 ${fmtAmt(totPaid)}</span> (단위: 만원)</p>
       <div class="actions"><button onclick="app.addResearch('${cat}')">+ ${label} 추가</button></div>`;
   }).join('');
-  return `<h3>연구</h3>${blocks}
-    <p class="hint">구분 칸을 바꾸면 행이 진행중 용역 ↔ 응모예정 과제 사이로 이동합니다.</p>`;
+  return `<h3>연구</h3>
+    <p class="hint">※ 맨 왼쪽 <b>‘구분’</b> 칸은 <b>드롭다운</b>입니다 — 눌러서 <b>진행 / 완료</b>를 선택하세요. ‘완료’로 바꾸면 아래 완료 표로 자동 이동합니다.</p>
+    ${blocks}`;
 }
 
 // ---------- 화면: 구성원 ----------
@@ -445,7 +453,7 @@ function pResearch() {
     return `<h3>${label}</h3><table class="psheet rsch">${head}${rows}</table>
       <p class="sum">금액 합계 ${tot} · 입금액 합계 ${paid} (단위: 만원)</p>`;
   };
-  return `<h2>연구</h2>${block('진행', '진행중 용역')}${block('응모', '응모예정 과제')}`;
+  return `<h2>연구</h2>${block('진행', '진행중 용역')}${block('완료', '완료 용역')}`;
 }
 
 // ---------- 화면: 조회 · 내보내기 ----------
@@ -483,13 +491,13 @@ function roleInResearch(name, r) {
 
 function vActivity() {
   const prog = state.research.filter(r => (r.cat || '진행') === '진행');
-  const apply = state.research.filter(r => (r.cat || '진행') === '응모');
+  const apply = state.research.filter(r => (r.cat || '진행') === '완료');
 
   // 매트릭스 열 구성 (코드 머리글 + 범례)
   const cols = [];
   state.biz.forEach(b => cols.push({ g: '사업', head: b.name, title: b.name, mark: n => roleInBiz(n, b) }));
   prog.forEach((r, i) => cols.push({ g: '진행 연구', head: 'P' + (i + 1), code: 'P' + (i + 1), title: r.title, mark: n => roleInResearch(n, r) }));
-  apply.forEach((r, i) => cols.push({ g: '응모 연구', head: 'A' + (i + 1), code: 'A' + (i + 1), title: r.title, mark: n => roleInResearch(n, r) }));
+  apply.forEach((r, i) => cols.push({ g: '완료 연구', head: 'C' + (i + 1), code: 'C' + (i + 1), title: r.title, mark: n => roleInResearch(n, r) }));
 
   const groups = [];
   cols.forEach(c => { const last = groups[groups.length - 1]; if (last && last.g === c.g) last.n++; else groups.push({ g: c.g, n: 1 }); });
@@ -525,7 +533,7 @@ function vActivity() {
     <p class="hint">사업의 <b>담당자</b>, 연구의 <b>책임자·연구위원·연구원</b> 칸에서 구성원 이름을 자동으로 찾아 연결합니다.
       연결을 바꾸려면 <b>사업·연구 탭</b>에서 해당 칸을 수정하세요(여기는 자동 반영).</p>
     <h4>관계 매트릭스 <span class="hint">(★ 담당·책임 / ○ 참여)</span></h4>
-    <p class="hint">각 구성원이 어떤 사업·연구에 참여하는지 한눈에 보는 표입니다. 사업은 이름으로, 연구는 제목이 길어 <b>P·A 코드</b>로 적고 아래에 전체 제목을 풀어 두었습니다. (P=진행 연구, A=응모 연구)</p>
+    <p class="hint">각 구성원이 어떤 사업·연구에 참여하는지 한눈에 보는 표입니다. 사업은 이름으로, 연구는 제목이 길어 <b>P·C 코드</b>로 적고 아래에 전체 제목을 풀어 두었습니다. (P=진행 연구, C=완료 연구)</p>
     <div class="scroll"><table class="sheet mtx">${grpRow}${codeRow}${bodyRows}</table></div>
     <div class="legend"><b>연구 코드 — 전체 제목</b><ul>${legend}</ul></div>
     <h4>구성원별 요약</h4>
