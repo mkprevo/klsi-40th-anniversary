@@ -139,10 +139,10 @@ function migrate() {
   }
 }
 
-// 연구 구분 응모→진행 정리 (진행/완료 체계로 전환, 1회)
+// 연구 구분 정리: 진행/완료/논의 외의 값(옛 응모 등)은 진행으로 (1회)
 function migrateResearchCat() {
   let changed = false;
-  state.research.forEach(r => { if (r.cat !== '진행' && r.cat !== '완료') { r.cat = '진행'; changed = true; } });
+  state.research.forEach(r => { if (r.cat !== '진행' && r.cat !== '완료' && r.cat !== '논의') { r.cat = '진행'; changed = true; } });
   if (changed) persist('research');
 }
 
@@ -346,9 +346,22 @@ function vResearch() {
       <p><span class="badge">${label} 금액 합계 ${fmtAmt(tot)}</span> <span class="badge">입금액 합계 ${fmtAmt(totPaid)}</span> (단위: 만원)</p>
       <div class="actions"><button onclick="app.addResearch('${cat}')">+ ${label} 추가</button></div>`;
   }).join('');
+  // 논의중인 연구 (계약 전 검토 단계 — 간단 5칸 표)
+  const dList = state.research.filter(r => r.cat === '논의').sort((a, b) => amt(a.no) - amt(b.no));
+  const dRows = dList.map(r =>
+    `<tr>${icel('research', r.id, 'no', r.no)}${cell('research', r.id, 'title', r.title, H)}${cell('research', r.id, 'client', r.client, H)}${icel('research', r.id, 'amount', r.amount)}${cell('research', r.id, 'status', r.status, H)}${delBtn('research', r.id)}</tr>`).join('');
+  const dTot = dList.reduce((s, r) => s + amt(r.amount), 0);
+  const discuss = `<h4>논의중인 연구</h4>
+    <div class="scroll"><table class="sheet">
+      <colgroup>${[6, 40, 20, 10, 21, 3].map(w => `<col style="width:${w}%">`).join('')}</colgroup>
+      <tr><th>번호</th><th>연구용역명</th><th>발주처</th><th>금액</th><th>진행상황</th><th></th></tr>${dRows}</table></div>
+    <p><span class="badge">논의중 금액 합계 ${fmtAmt(dTot)}</span> (단위: 만원)</p>
+    <div class="actions"><button onclick="app.addResearch('논의')">+ 논의중인 연구 추가</button></div>
+    <p class="hint">계약이 확정되면 위 <b>진행중 용역</b>에 새로 추가하고 이 행은 삭제하세요.</p>`;
+
   return `<h3>연구</h3>
     <p class="hint">※ 맨 왼쪽 <b>‘구분’</b> 칸은 <b>드롭다운</b>입니다 — 눌러서 <b>진행 / 완료</b>를 선택하세요. ‘완료’로 바꾸면 아래 완료 표로 자동 이동합니다.</p>
-    ${blocks}`;
+    ${blocks}${discuss}`;
 }
 
 // ---------- 화면: 구성원 ----------
@@ -453,7 +466,12 @@ function pResearch() {
     return `<h3>${label}</h3><table class="psheet rsch">${head}${rows}</table>
       <p class="sum">금액 합계 ${tot} · 입금액 합계 ${paid} (단위: 만원)</p>`;
   };
-  return `<h2>연구</h2>${block('진행', '진행중 용역')}${block('완료', '완료 용역')}`;
+  const dList = state.research.filter(r => r.cat === '논의').sort((a, b) => amt(a.no) - amt(b.no));
+  const discuss = dList.length ? `<h3>논의중인 연구</h3>
+    <table class="psheet"><tr><th style="width:34px">번호</th><th>연구용역명</th><th>발주처</th><th>금액</th><th>진행상황</th></tr>
+    ${dList.map(r => `<tr><td class="c">${ptext(r.no)}</td><td>${ptext(r.title)}</td><td>${ptext(r.client)}</td><td class="r">${ptext(r.amount)}</td><td>${ptext(r.status)}</td></tr>`).join('')}</table>
+    <p class="sum">논의중 금액 합계 ${fmtAmt(dList.reduce((s, r) => s + amt(r.amount), 0))} (단위: 만원)</p>` : '';
+  return `<h2>연구</h2>${block('진행', '진행중 용역')}${block('완료', '완료 용역')}${discuss}`;
 }
 
 // ---------- 화면: 조회 (구성원별 내 기록) ----------
