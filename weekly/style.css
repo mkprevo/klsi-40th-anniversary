@@ -54,6 +54,7 @@ select.catsel { width: 100%; box-sizing: border-box; border: 1px solid #16a085; 
   color: #16a085; font-weight: 700; text-align: center; }
 select.catsel[data-v="완료"] { border-color: #95a5a6; background: #eef1f2; color: #607080; }
 select.catsel[data-v="논의"] { border-color: #e67e22; background: #fdf3e7; color: #b9770e; }
+select.catsel[data-v="DB"] { border-color: #2c3e50; background: #eaf0f5; color: #2c3e50; }
 @media (max-width: 768px) { table.rsch { min-width: 900px; table-layout: auto; } }
 
 /* 칸 직접 입력 */

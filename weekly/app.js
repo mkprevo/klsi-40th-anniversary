@@ -139,10 +139,10 @@ function migrate() {
   }
 }
 
-// 연구 구분 정리: 진행/완료/논의 외의 값(옛 응모 등)은 진행으로 (1회)
+// 연구 구분 정리: 진행/완료/논의/DB 외의 값(옛 응모 등)은 진행으로 (1회)
 function migrateResearchCat() {
   let changed = false;
-  state.research.forEach(r => { if (r.cat !== '진행' && r.cat !== '완료' && r.cat !== '논의') { r.cat = '진행'; changed = true; } });
+  state.research.forEach(r => { if (!['진행', '완료', '논의', 'DB'].includes(r.cat)) { r.cat = '진행'; changed = true; } });
   if (changed) persist('research');
 }
 
@@ -338,7 +338,7 @@ function vResearch() {
     const list = state.research.filter(r => (r.cat || '진행') === cat)
       .sort((a, b) => (a.year + '').localeCompare(b.year + '') || amt(a.no) - amt(b.no));
     const rows = list.map(r =>
-      `<tr>${scel('research', r.id, 'cat', r.cat || '진행', ['진행', '완료'])}${icel('research', r.id, 'year', r.year)}${icel('research', r.id, 'no', r.no)}${cell('research', r.id, 'title', r.title, H)}${cell('research', r.id, 'lead', r.lead, H)}${cell('research', r.id, 'fellows', r.fellows, H)}${cell('research', r.id, 'asst', r.asst, H)}${icel('research', r.id, 'contract', r.contract)}${cell('research', r.id, 'client', r.client, H)}${icel('research', r.id, 'start', r.start)}${icel('research', r.id, 'end', r.end)}${icel('research', r.id, 'amount', r.amount)}${icel('research', r.id, 'paid', r.paid)}${icel('research', r.id, 'approve', r.approve)}${cell('research', r.id, 'status', r.status, H)}${delBtn('research', r.id)}</tr>`).join('');
+      `<tr>${scel('research', r.id, 'cat', r.cat || '진행', cat === '완료' ? ['진행', '완료', 'DB'] : ['진행', '완료'])}${icel('research', r.id, 'year', r.year)}${icel('research', r.id, 'no', r.no)}${cell('research', r.id, 'title', r.title, H)}${cell('research', r.id, 'lead', r.lead, H)}${cell('research', r.id, 'fellows', r.fellows, H)}${cell('research', r.id, 'asst', r.asst, H)}${icel('research', r.id, 'contract', r.contract)}${cell('research', r.id, 'client', r.client, H)}${icel('research', r.id, 'start', r.start)}${icel('research', r.id, 'end', r.end)}${icel('research', r.id, 'amount', r.amount)}${icel('research', r.id, 'paid', r.paid)}${icel('research', r.id, 'approve', r.approve)}${cell('research', r.id, 'status', r.status, H)}${delBtn('research', r.id)}</tr>`).join('');
     const tot = list.reduce((s, r) => s + amt(r.amount), 0);
     const totPaid = list.reduce((s, r) => s + amt(r.paid), 0);
     return `<h4>${label}</h4>
@@ -361,8 +361,33 @@ function vResearch() {
     <p class="hint">계약이 확정되면 맨 왼쪽 <b>구분</b>을 <b>‘진행’</b>으로 바꾸세요 — 연도·연번이 자동 부여되어 <b>진행중 용역 맨 아래</b>로 이동합니다. (책임자 등 나머지 정보는 이동 후 입력)</p>`;
 
   return `<h3>연구</h3>
-    <p class="hint">※ 맨 왼쪽 <b>‘구분’</b> 칸은 <b>드롭다운</b>입니다 — 눌러서 <b>진행 / 완료</b>를 선택하세요. ‘완료’로 바꾸면 아래 완료 표로 자동 이동합니다.</p>
+    <p class="hint">※ 맨 왼쪽 <b>‘구분’</b> 칸은 <b>드롭다운</b>입니다 — 눌러서 <b>진행 / 완료</b>를 선택하세요.
+      완료 용역의 구분을 <b>‘DB’</b>로 바꾸면 <b>연구DB 탭</b>에 연도별로 보관됩니다(삭제 대신 보관).</p>
     ${blocks}${discuss}`;
+}
+
+// ---------- 화면: 연구DB (완료 용역 연도별 보관소 — 총회·분석용) ----------
+function vResearchDB() {
+  const list = state.research.filter(r => r.cat === 'DB');
+  const years = [...new Set(list.map(r => (r.year || '미상')))].sort().reverse();
+  const colg = `<colgroup>${[6, 4, 18, 7, 10, 7, 10, 7, 7, 6, 6, 9, 3].map(w => `<col style="width:${w}%">`).join('')}</colgroup>`;
+  const head = `<tr><th>구분</th><th>연번</th><th>연구과제명</th><th>책임자</th><th>연구위원</th><th>연구원</th><th>발주처</th><th>시작</th><th>종료</th><th>금액</th><th>입금액</th><th>진행상황</th><th></th></tr>`;
+  const H = 'min-height:32px';
+  const blocks = years.map(y => {
+    const ys = list.filter(r => (r.year || '미상') === y).sort((a, b) => amt(a.no) - amt(b.no));
+    const rows = ys.map(r =>
+      `<tr>${scel('research', r.id, 'cat', 'DB', ['DB', '완료'])}${icel('research', r.id, 'no', r.no)}${cell('research', r.id, 'title', r.title, H)}${cell('research', r.id, 'lead', r.lead, H)}${cell('research', r.id, 'fellows', r.fellows, H)}${icel('research', r.id, 'asst', r.asst)}${cell('research', r.id, 'client', r.client, H)}${icel('research', r.id, 'start', r.start)}${icel('research', r.id, 'end', r.end)}${icel('research', r.id, 'amount', r.amount)}${icel('research', r.id, 'paid', r.paid)}${cell('research', r.id, 'status', r.status, H)}${delBtn('research', r.id)}</tr>`).join('');
+    const tot = ys.reduce((s, r) => s + amt(r.amount), 0);
+    const totPaid = ys.reduce((s, r) => s + amt(r.paid), 0);
+    return `<h4>${esc(y)}년 (${ys.length}건)</h4>
+      <div class="scroll"><table class="sheet rsch">${colg}${head}${rows}</table></div>
+      <p><span class="badge">${esc(y)}년 금액 합계 ${fmtAmt(tot)}</span> <span class="badge">입금액 합계 ${fmtAmt(totPaid)}</span> (단위: 만원)</p>`;
+  }).join('');
+  return `<h3>연구DB <span class="hint">(완료 용역 보관소 — 총회·연구자료 분석용)</span></h3>
+    <p class="hint">연구 탭의 <b>완료 용역</b>에서 구분을 <b>‘DB’</b>로 바꾸면 여기에 연도별로 쌓입니다.
+      잘못 보관했으면 이곳 구분을 <b>‘완료’</b>로 바꿔 되돌릴 수 있습니다.</p>
+    <div class="actions"><button class="primary" onclick="app.exportDBCSV()">연구DB 전체 CSV 내보내기</button></div>
+    ${blocks || '<p class="hint">아직 보관된 연구가 없습니다.</p>'}`;
 }
 
 // ---------- 화면: 구성원 ----------
@@ -576,8 +601,8 @@ function vActivity() {
   // 구성원별 요약 (이름으로 나열)
   const sumRows = state.people.map(p => {
     const bz = state.biz.filter(b => roleInBiz(p.name, b)).map(b => b.name);
-    const lead = state.research.filter(r => tokens(r.lead).includes(p.name)).map(r => r.title);
-    const part = state.research.filter(r => tokens(r.fellows).includes(p.name) || tokens(r.asst).includes(p.name)).map(r => r.title);
+    const lead = state.research.filter(r => r.cat !== 'DB' && tokens(r.lead).includes(p.name)).map(r => r.title);
+    const part = state.research.filter(r => r.cat !== 'DB' && (tokens(r.fellows).includes(p.name) || tokens(r.asst).includes(p.name))).map(r => r.title);
     const cnt = bz.length + lead.length + part.length;
     const td = arr => arr.length ? arr.map(esc).join('<br>') : '<span class="muted">-</span>';
     const role = esc(p.role) || '<span class="muted">-</span>';
@@ -586,7 +611,7 @@ function vActivity() {
 
   // 담당 구성원이 인식되지 않은 활동
   const orphanBiz = state.biz.filter(b => !state.people.some(p => roleInBiz(p.name, b))).map(b => '[사업] ' + b.name);
-  const orphanRes = state.research.filter(r => !state.people.some(p => roleInResearch(p.name, r))).map(r => '[연구] ' + r.title);
+  const orphanRes = state.research.filter(r => r.cat !== 'DB' && !state.people.some(p => roleInResearch(p.name, r))).map(r => '[연구] ' + r.title);
   const orphans = [...orphanBiz, ...orphanRes];
 
   return `<h3>구성원 활동 현황</h3>
@@ -606,7 +631,7 @@ function vActivity() {
 }
 
 // ---------- 라우터 ----------
-const VIEWS = { grid: vGrid, meeting: vMeeting, biz: vBiz, research: vResearch, activity: vActivity, search: vSearch, people: vPeople };
+const VIEWS = { grid: vGrid, meeting: vMeeting, biz: vBiz, research: vResearch, researchdb: vResearchDB, activity: vActivity, search: vSearch, people: vPeople };
 function route() {
   const tab = location.hash.slice(1) || 'grid';
   document.querySelectorAll('.tabs a[data-tab]').forEach(a =>
@@ -648,6 +673,15 @@ window.app = {
     r.cat = '진행'; r.year = year; r.no = String(maxNo + 1);
     saveRec('research', r);
     route();
+  },
+  // 연구DB 전체(연도별 보관분) CSV — 총회·분석용
+  exportDBCSV() {
+    const list = state.research.filter(r => r.cat === 'DB')
+      .sort((a, b) => (b.year + '').localeCompare(a.year + '') || amt(a.no) - amt(b.no));
+    if (!list.length) { alert('보관된 연구가 없습니다.'); return; }
+    this._downloadCSV('klsi_연구DB',
+      ['년도', '연번', '연구과제명', '책임자', '연구위원', '연구원', '발주처', '시작', '종료', '금액', '입금액', '진행상황'],
+      list.map(r => [r.year, r.no, r.title, r.lead, r.fellows, r.asst, r.client, r.start, r.end, r.amount, r.paid, r.status]));
   },
   addPerson() {
     const name = document.getElementById('npName').value.trim();
