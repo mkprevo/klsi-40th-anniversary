@@ -346,18 +346,19 @@ function vResearch() {
       <p><span class="badge">${label} 금액 합계 ${fmtAmt(tot)}</span> <span class="badge">입금액 합계 ${fmtAmt(totPaid)}</span> (단위: 만원)</p>
       <div class="actions"><button onclick="app.addResearch('${cat}')">+ ${label} 추가</button></div>`;
   }).join('');
-  // 논의중인 연구 (계약 전 검토 단계 — 간단 5칸 표)
+  // 논의중인 연구 (계약 전 검토 단계 — 구분 드롭다운으로 진행 승격)
   const dList = state.research.filter(r => r.cat === '논의').sort((a, b) => amt(a.no) - amt(b.no));
   const dRows = dList.map(r =>
-    `<tr>${icel('research', r.id, 'no', r.no)}${cell('research', r.id, 'title', r.title, H)}${cell('research', r.id, 'client', r.client, H)}${icel('research', r.id, 'amount', r.amount)}${cell('research', r.id, 'status', r.status, H)}${delBtn('research', r.id)}</tr>`).join('');
+    `<tr><td><select class="cl catsel" data-v="논의" onchange="app.promoteDiscuss('${r.id}', this)"><option selected>논의</option><option>진행</option></select></td>` +
+    `${icel('research', r.id, 'no', r.no)}${cell('research', r.id, 'title', r.title, H)}${cell('research', r.id, 'client', r.client, H)}${icel('research', r.id, 'amount', r.amount)}${cell('research', r.id, 'status', r.status, H)}${delBtn('research', r.id)}</tr>`).join('');
   const dTot = dList.reduce((s, r) => s + amt(r.amount), 0);
   const discuss = `<h4>논의중인 연구</h4>
     <div class="scroll"><table class="sheet">
-      <colgroup>${[6, 40, 20, 10, 21, 3].map(w => `<col style="width:${w}%">`).join('')}</colgroup>
-      <tr><th>번호</th><th>연구용역명</th><th>발주처</th><th>금액</th><th>진행상황</th><th></th></tr>${dRows}</table></div>
+      <colgroup>${[7, 5, 36, 19, 9, 21, 3].map(w => `<col style="width:${w}%">`).join('')}</colgroup>
+      <tr><th>구분</th><th>번호</th><th>연구용역명</th><th>발주처</th><th>금액</th><th>진행상황</th><th></th></tr>${dRows}</table></div>
     <p><span class="badge">논의중 금액 합계 ${fmtAmt(dTot)}</span> (단위: 만원)</p>
     <div class="actions"><button onclick="app.addResearch('논의')">+ 논의중인 연구 추가</button></div>
-    <p class="hint">계약이 확정되면 위 <b>진행중 용역</b>에 새로 추가하고 이 행은 삭제하세요.</p>`;
+    <p class="hint">계약이 확정되면 맨 왼쪽 <b>구분</b>을 <b>‘진행’</b>으로 바꾸세요 — 연도·연번이 자동 부여되어 <b>진행중 용역 맨 아래</b>로 이동합니다. (책임자 등 나머지 정보는 이동 후 입력)</p>`;
 
   return `<h3>연구</h3>
     <p class="hint">※ 맨 왼쪽 <b>‘구분’</b> 칸은 <b>드롭다운</b>입니다 — 눌러서 <b>진행 / 완료</b>를 선택하세요. ‘완료’로 바꾸면 아래 완료 표로 자동 이동합니다.</p>
@@ -632,6 +633,20 @@ window.app = {
   },
   addResearch(cat) {
     DB.add('research', { cat, year: String(new Date().getFullYear()), no: '', title: '', lead: '', fellows: '', asst: '', contract: '', client: '', start: '', end: '', amount: '', paid: '', approve: '', status: '' });
+    route();
+  },
+  // 논의중인 연구 → 진행중 용역 승격 (연도·연번 자동 부여, 표 맨 아래로)
+  promoteDiscuss(id, sel) {
+    if (sel.value !== '진행') return;
+    const r = state.research.find(x => x.id === id);
+    if (!r) return;
+    if (!confirm(`'${(r.title || '이 연구').slice(0, 30)}' 을(를) 진행중 용역으로 이동할까요?`)) { sel.value = '논의'; return; }
+    const year = String(new Date().getFullYear());
+    const maxNo = state.research
+      .filter(x => (x.cat || '진행') === '진행' && x.year === year)
+      .reduce((m, x) => Math.max(m, amt(x.no)), 0);
+    r.cat = '진행'; r.year = year; r.no = String(maxNo + 1);
+    saveRec('research', r);
     route();
   },
   addPerson() {
